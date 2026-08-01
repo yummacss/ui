@@ -48,7 +48,7 @@ function parse(argv: string[]): { names: string[]; options: Options } {
  * anyone should have to live with. A named variant keeps it, so
  * `button-pill.tsx` still says what it is.
  */
-function targetFileName(component: string, variant: string): string {
+export function targetFileName(component: string, variant: string): string {
 	return variant === "base"
 		? `${component}.tsx`
 		: `${component}-${variant}.tsx`;
@@ -244,7 +244,7 @@ export async function add(argv: string[]): Promise<number> {
  * "button"). Edit distance catches those, and substring still catches the
  * half-remembered name ("dialog" for "alert-dialog").
  */
-function editDistance(a: string, b: string): number {
+export function editDistance(a: string, b: string): number {
 	let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
 	for (let i = 1; i <= a.length; i++) {
 		const row = [i];
