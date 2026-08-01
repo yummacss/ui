@@ -1,5 +1,5 @@
 import c from "picocolors";
-import { findProjectRoot, readConfig } from "../project";
+import { findProjectRoot, readConfig, runner } from "../project";
 import { DEFAULT_REGISTRY, fetchIndex, RegistryError } from "../registry";
 
 export async function list(argv: string[]): Promise<number> {
@@ -25,7 +25,7 @@ export async function list(argv: string[]): Promise<number> {
 		}
 		console.log(`\n${c.bold(entry.title)}  ${c.dim(entry.component)}\n`);
 		console.log(
-			`  ${c.green("base")}  ${c.dim("npx yummaui add " + entry.component)}\n`,
+			`  ${c.green("base")}  ${c.dim(`${runner(root)} add ${entry.component}`)}\n`,
 		);
 		if (entry.variants.length) {
 			console.log(`  ${c.bold(`${entry.variants.length} variants`)}`);
@@ -49,7 +49,7 @@ export async function list(argv: string[]): Promise<number> {
 	}
 
 	console.log(
-		`\n  ${c.dim("npx yummaui list <component>")}  to see its variants\n`,
+		`\n  ${c.dim(`${runner(root)} list <component>`)}  to see its variants\n`,
 	);
 	return 0;
 }

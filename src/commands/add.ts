@@ -10,6 +10,7 @@ import {
 	installCommand,
 	missingDependencies,
 	readConfig,
+	runner,
 } from "../project";
 import {
 	fetchIndex,
@@ -65,13 +66,13 @@ export async function add(argv: string[]): Promise<number> {
 	const config = readConfig(root);
 	if (!config) {
 		p.log.error(
-			`No ${CONFIG_FILE} found. Run ${c.cyan("npx yummaui init")} first.`,
+			`No ${CONFIG_FILE} found. Run ${c.cyan(`${runner(root)} init`)} first.`,
 		);
 		return 1;
 	}
 
 	if (names.length === 0) {
-		p.log.error("Nothing to add. Try: npx yummaui add button");
+		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
 		return 1;
 	}
 
@@ -275,5 +276,5 @@ function suggest(components: RegistryComponent[], name: string): void {
 		.map((x) => x.name);
 
 	if (near.length) p.log.info(`Did you mean: ${near.join(", ")}`);
-	else p.log.info("Run npx yummaui list to see everything.");
+	else p.log.info(`Run ${runner()} list to see everything.`);
 }

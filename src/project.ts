@@ -148,3 +148,24 @@ export function installCommand(
 	const args = pm === "npm" ? ["install", ...specs] : ["add", ...specs];
 	return { command: pm, args };
 }
+
+/**
+ * How to invoke this CLI with the project's own package manager, for any hint
+ * printed back to the user. Telling a pnpm user to run `npx` reads as not
+ * knowing what project you are standing in.
+ *
+ * `pnpm dlx`, never `pnpx`: the latter does not exist.
+ */
+export function runner(root: string | null = findProjectRoot()): string {
+	const pm = root ? detectPackageManager(root) : "npm";
+	switch (pm) {
+		case "pnpm":
+			return "pnpm dlx yummaui";
+		case "yarn":
+			return "yarn dlx yummaui";
+		case "bun":
+			return "bunx yummaui";
+		default:
+			return "npx yummaui";
+	}
+}

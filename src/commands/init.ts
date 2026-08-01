@@ -9,6 +9,7 @@ import {
 	detectPackageManager,
 	findProjectRoot,
 	readConfig,
+	runner,
 	writeConfig,
 } from "../project";
 import { DEFAULT_REGISTRY } from "../registry";
@@ -66,7 +67,7 @@ export async function init(argv: string[]): Promise<number> {
 	writeConfig(root, config);
 
 	p.log.success(`Wrote ${c.bold(configPath(root))}`);
-	p.outro(`Next: ${c.cyan("npx yummaui add button")}`);
+	p.outro(`Next: ${c.cyan(`${runner(root)} add button`)}`);
 	return 0;
 }
 
