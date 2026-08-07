@@ -15,26 +15,22 @@ import {
 import {
 	fetchIndex,
 	fetchItem,
-	type RegistryComponent,
 	RegistryError,
+	type RegistryIndex,
 } from "../registry";
 
 interface Options {
-	variant: string | null;
 	overwrite: boolean;
 	yes: boolean;
 }
 
 function parse(argv: string[]): { names: string[]; options: Options } {
 	const names: string[] = [];
-	const options: Options = { variant: null, overwrite: false, yes: false };
+	const options: Options = { overwrite: false, yes: false };
 
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i] as string;
-		if (arg === "--variant" || arg === "-v")
-			options.variant = argv[++i] ?? null;
-		else if (arg.startsWith("--variant=")) options.variant = arg.slice(10);
-		else if (arg === "--overwrite") options.overwrite = true;
+		if (arg === "--overwrite") options.overwrite = true;
 		else if (arg === "--yes" || arg === "-y") options.yes = true;
 		else if (!arg.startsWith("-")) names.push(arg);
 	}
@@ -43,15 +39,13 @@ function parse(argv: string[]): { names: string[]; options: Options } {
 }
 
 /**
- * The base variant drops its suffix on disk: `button-base` becomes
- * `button.tsx`, because `-base` is an id in the registry rather than a name
- * anyone should have to live with. A named variant keeps it, so
- * `button-pill.tsx` still says what it is.
+ * A component drops the `-base` suffix its registry id carries, because that
+ * suffix is bookkeeping rather than a name anyone should live with: `button`
+ * lands as `button.tsx`. A block keeps its whole id, so `dialog-sign-in.tsx`
+ * still says what it is.
  */
-export function targetFileName(component: string, variant: string): string {
-	return variant === "base"
-		? `${component}.tsx`
-		: `${component}-${variant}.tsx`;
+export function targetFileName(id: string, component: string, variant: string) {
+	return variant === "base" ? `${component}.tsx` : `${id}.tsx`;
 }
 
 export async function add(argv: string[]): Promise<number> {
@@ -83,11 +77,6 @@ export async function add(argv: string[]): Promise<number> {
 		return 1;
 	}
 
-	if (options.variant && names.length > 1) {
-		p.log.error("--variant applies to a single component at a time.");
-		return 1;
-	}
-
 	p.intro(c.bgCyan(c.black(" Yumma UI ")));
 
 	let index: Awaited<ReturnType<typeof fetchIndex>>;
@@ -100,32 +89,32 @@ export async function add(argv: string[]): Promise<number> {
 		p.log.error(error instanceof RegistryError ? error.message : String(error));
 		return 1;
 	}
-	s.stop(`${index.components.length} components available`);
+	s.stop(
+		`${index.components.length} components, ${index.blocks.length} blocks available`,
+	);
 
 	const pending: string[] = [];
 
+	// One flat namespace: a component by its name, a block by its own id.
+	// There is deliberately no way to ask for an example - the difference
+	// between `autocomplete` and the "large" example of it is `size="lg"`,
+	// which is a prop you pass, not a second file to own and keep in sync.
 	for (const name of names) {
-		const entry = index.components.find((x) => x.component === name);
-		if (!entry) {
-			p.log.error(`Unknown component ${c.bold(name)}.`);
-			suggest(index.components, name);
-			return 1;
+		const component = index.components.find((x) => x.component === name);
+		if (component) {
+			pending.push(component.base);
+			continue;
 		}
 
-		if (options.variant) {
-			if (!entry.variants.includes(options.variant)) {
-				p.log.error(
-					`${c.bold(name)} has no variant ${c.bold(`"${options.variant}"`)}.`,
-				);
-				p.log.info(
-					`Available (${entry.variants.length}):\n${entry.variants.join(", ")}`,
-				);
-				return 1;
-			}
-			pending.push(`${name}-${options.variant}`);
-		} else {
-			pending.push(entry.base);
+		const block = index.blocks.find((x) => x.id === name);
+		if (block) {
+			pending.push(block.id);
+			continue;
 		}
+
+		p.log.error(`Unknown component or block ${c.bold(name)}.`);
+		suggest(index, name);
+		return 1;
 	}
 
 	const written: string[] = [];
@@ -166,7 +155,7 @@ export async function add(argv: string[]): Promise<number> {
 			if (!(await writeTarget(dep, false))) return false;
 		}
 
-		const fileName = targetFileName(item.component, item.variant);
+		const fileName = targetFileName(item.id, item.component, item.variant);
 		const dest = join(root, componentsDir, fileName);
 		const shown = relative(root, dest).replace(/\\/g, "/");
 
@@ -293,9 +282,16 @@ export function editDistance(a: string, b: string): number {
 	return prev[b.length] as number;
 }
 
-function suggest(components: RegistryComponent[], name: string): void {
-	const near = components
-		.map((x) => x.component)
+/**
+ * Suggests across components and blocks together, since they share one
+ * namespace: someone typing `dialog-signin` wants the block, and someone
+ * typing `buton` wants the component.
+ */
+function suggest(index: RegistryIndex, name: string): void {
+	const near = [
+		...index.components.map((x) => x.component),
+		...index.blocks.map((x) => x.id),
+	]
 		.map((x) => ({
 			name: x,
 			score: x.includes(name) || name.includes(x) ? 0 : editDistance(x, name),

@@ -11,10 +11,19 @@ export interface RegistryFile {
 	content: string;
 }
 
+/**
+ * `component` is a props-driven unit: one file, every variation reachable
+ * through props. `block` is a composition installed under its own id. An
+ * `example` only demonstrates a prop, so it is never installed - the docs
+ * point at its component instead, and you pass the prop.
+ */
+export type RegistryKind = "component" | "block" | "example";
+
 export interface RegistryItem {
 	id: string;
 	component: string;
 	variant: string;
+	kind: RegistryKind;
 	useClient: boolean;
 	dependencies: RegistryDependency[];
 	registryDependencies: string[];
@@ -25,11 +34,17 @@ export interface RegistryComponent {
 	component: string;
 	title: string;
 	base: string;
-	variants: string[];
+}
+
+export interface RegistryBlock {
+	id: string;
+	/** The component it is built from, for grouping in `list`. */
+	component: string;
 }
 
 export interface RegistryIndex {
 	components: RegistryComponent[];
+	blocks: RegistryBlock[];
 	generated: number;
 }
 

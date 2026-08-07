@@ -14,14 +14,22 @@ function respond(body: string, init: ResponseInit = {}) {
 }
 
 describe("targetFileName", () => {
-	// The whole point of the -base rename: the base is the component's name, a
-	// variant keeps its suffix so the file still says what it is.
-	it("drops the suffix for base and keeps it for a variant", () => {
-		expect(targetFileName("button", "base")).toBe("button.tsx");
-		expect(targetFileName("button", "pill")).toBe("button-pill.tsx");
-		expect(targetFileName("alert-dialog", "base")).toBe("alert-dialog.tsx");
-		expect(targetFileName("alert-dialog", "destructive")).toBe(
-			"alert-dialog-destructive.tsx",
+	// A component lands under its own name; the `-base` its registry id carries
+	// is bookkeeping nobody should have to live with on disk.
+	it("drops the suffix for a component", () => {
+		expect(targetFileName("button", "button", "base")).toBe("button.tsx");
+		expect(targetFileName("alert-dialog", "alert-dialog", "base")).toBe(
+			"alert-dialog.tsx",
+		);
+	});
+
+	// A block keeps its whole id, so the file still says what it is.
+	it("keeps the whole id for a block", () => {
+		expect(targetFileName("dialog-sign-in", "dialog", "sign-in")).toBe(
+			"dialog-sign-in.tsx",
+		);
+		expect(targetFileName("button-group", "button", "group")).toBe(
+			"button-group.tsx",
 		);
 	});
 });
