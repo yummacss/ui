@@ -56,12 +56,15 @@ export function targetFileName(component: string, variant: string): string {
 
 export async function add(argv: string[]): Promise<number> {
 	const { names, options } = parse(argv);
-	const root = findProjectRoot();
+	const projectRoot = findProjectRoot();
 
-	if (!root) {
+	if (!projectRoot) {
 		p.log.error("No package.json found. Run this inside a project.");
 		return 1;
 	}
+	// Non-null alias: `writeTarget` below is a nested function declaration, and
+	// TS drops narrowing of outer bindings across a function boundary.
+	const root = projectRoot;
 
 	const config = readConfig(root);
 	if (!config) {
@@ -70,6 +73,10 @@ export async function add(argv: string[]): Promise<number> {
 		);
 		return 1;
 	}
+	// Aliased so `writeTarget`, a nested function declaration, does not lose
+	// the null check above: TS drops narrowing of outer bindings across a
+	// function boundary.
+	const { registry, componentsDir } = config;
 
 	if (names.length === 0) {
 		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
@@ -95,7 +102,7 @@ export async function add(argv: string[]): Promise<number> {
 	}
 	s.stop(`${index.components.length} components available`);
 
-	const pending: { id: string; component: string; variant: string }[] = [];
+	const pending: string[] = [];
 
 	for (const name of names) {
 		const entry = index.components.find((x) => x.component === name);
@@ -115,38 +122,58 @@ export async function add(argv: string[]): Promise<number> {
 				);
 				return 1;
 			}
-			pending.push({
-				id: `${name}-${options.variant}`,
-				component: name,
-				variant: options.variant,
-			});
+			pending.push(`${name}-${options.variant}`);
 		} else {
-			pending.push({ id: entry.base, component: name, variant: "base" });
+			pending.push(entry.base);
 		}
 	}
 
 	const written: string[] = [];
 	const allDeps = new Map<string, string>();
+	// An id a dependency chain has already fetched & either written or skipped,
+	// so two variants sharing a dependency - or a dependency cycle - only ever
+	// resolves once.
+	const resolved = new Set<string>();
 
-	for (const target of pending) {
+	/**
+	 * Writes one registry id, first writing whatever it declares under
+	 * `registryDependencies` so a variant demoing a migrated component always
+	 * brings that component with it.
+	 *
+	 * `promptOnConflict` is false for a dependency pulled in this way: the user
+	 * named the variant, not the component underneath it, so an existing file
+	 * there is resolved by keeping it rather than asking about a file they
+	 * never asked for.
+	 */
+	async function writeTarget(
+		id: string,
+		promptOnConflict: boolean,
+	): Promise<boolean> {
+		if (resolved.has(id)) return true;
+		resolved.add(id);
+
 		let item: Awaited<ReturnType<typeof fetchItem>>;
 		try {
-			item = await fetchItem(config.registry, target.id);
+			item = await fetchItem(registry, id);
 		} catch (error) {
 			p.log.error(
 				error instanceof RegistryError ? error.message : String(error),
 			);
-			return 1;
+			return false;
 		}
 
-		const fileName = targetFileName(target.component, target.variant);
-		const dest = join(root, config.componentsDir, fileName);
+		for (const dep of item.registryDependencies) {
+			if (!(await writeTarget(dep, false))) return false;
+		}
+
+		const fileName = targetFileName(item.component, item.variant);
+		const dest = join(root, componentsDir, fileName);
 		const shown = relative(root, dest).replace(/\\/g, "/");
 
 		if (existsSync(dest) && !options.overwrite) {
-			if (options.yes) {
+			if (!promptOnConflict || options.yes) {
 				p.log.warn(`Skipped ${shown} (already exists)`);
-				continue;
+				return true;
 			}
 			const answer = await p.confirm({
 				message: `${shown} already exists. Overwrite?`,
@@ -154,18 +181,18 @@ export async function add(argv: string[]): Promise<number> {
 			});
 			if (p.isCancel(answer)) {
 				p.cancel("Cancelled.");
-				return 1;
+				return false;
 			}
 			if (!answer) {
 				p.log.warn(`Skipped ${shown}`);
-				continue;
+				return true;
 			}
 		}
 
 		const source = item.files[0];
 		if (!source) {
-			p.log.error(`${target.id} has no files.`);
-			return 1;
+			p.log.error(`${id} has no files.`);
+			return false;
 		}
 
 		mkdirSync(dirname(dest), { recursive: true });
@@ -173,6 +200,11 @@ export async function add(argv: string[]): Promise<number> {
 		written.push(shown);
 
 		for (const dep of item.dependencies) allDeps.set(dep.name, dep.version);
+		return true;
+	}
+
+	for (const id of pending) {
+		if (!(await writeTarget(id, true))) return 1;
 	}
 
 	if (written.length === 0) {
