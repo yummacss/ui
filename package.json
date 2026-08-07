@@ -1,7 +1,7 @@
 {
 	"name": "yummaui",
 	"version": "0.0.1",
-	"description": "Add Yumma UI components to your project. Copies source into your repo, never a dependency.",
+	"description": "Add Yumma UI components to your project.",
 	"keywords": [
 		"yummacss",
 		"yumma-ui",
