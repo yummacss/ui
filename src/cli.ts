@@ -19,7 +19,6 @@ ${c.bold("Commands")}
   list [component]         Browse what is available
 
 ${c.bold("Options")}
-  -v, --variant <name>     Add a specific variant instead of the base
       --overwrite          Replace files that already exist
   -y, --yes                Skip prompts, take the defaults
   -h, --help               Show this
@@ -27,7 +26,6 @@ ${c.bold("Options")}
 
 ${c.bold("Examples")}
   npx yummaui add button
-  npx yummaui add button --variant pill
   npx yummaui add dialog tooltip
   npx yummaui list button
 `;
