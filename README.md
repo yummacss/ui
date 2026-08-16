@@ -43,14 +43,15 @@ Pass `--force` to overwrite an existing config.
 ```bash
 pnpm dlx yummaui add button
 pnpm dlx yummaui add dialog tooltip
-pnpm dlx yummaui add button --variant pill
+pnpm dlx yummaui add dialog-sign-in
 ```
 
-Every component has a base and a set of variants. `add button` gives you the base as `button.tsx`; `add button --variant pill` gives you `button-pill.tsx`, so the file still says what it is.
+Components and blocks share one namespace. A component lands under its own name, so `add button` gives you `button.tsx`; a block keeps its whole id, so `add dialog-sign-in` gives you `dialog-sign-in.tsx` and the file still says what it is.
+
+There is no way to ask for an example, deliberately. The difference between `autocomplete` and its large demo is `size="lg"` — a prop you pass, not a second file to own and keep in sync.
 
 | Option | |
 | --- | --- |
-| `-v, --variant <name>` | Add a variant instead of the base |
 | `--overwrite` | Replace files that already exist |
 | `-y, --yes` | Skip prompts and take the defaults |
 
@@ -65,7 +66,7 @@ pnpm dlx yummaui list button
 
 ## Dependencies
 
-Components are self-contained. Each one is a single file that imports only from npm, never from another component and never from a shared helper, so there is nothing to copy alongside it.
+A component is a single file that imports only from npm, never from a shared helper. A block is built from components and says so: `add dialog-sign-in` writes the block plus the checkbox, dialog and field it composes, whose `./` imports resolve beside it.
 
 What a component needs varies. `button` needs only [Base UI](https://base-ui.com); `accordion` also needs `motion` and `iconoir-react`. `add` reads the requirements per component, compares them against your `package.json`, and offers to install only what is missing. You will not end up with an animation library because you wanted a button.
 
@@ -82,7 +83,7 @@ Installs run through whichever package manager your lockfile indicates.
 The CLI reads a static JSON registry published by the docs site:
 
 ```
-https://yummacss.com/ui/r/index.json      every component and its variants
+https://yummacss.com/ui/r/index.json      every component and block
 https://yummacss.com/ui/r/<id>.json       one component's source and dependencies
 ```
 
