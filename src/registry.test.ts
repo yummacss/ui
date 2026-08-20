@@ -127,27 +127,8 @@ describe("resolveNames", () => {
 		});
 	});
 
-	it("expands `all` to every component, and no blocks", () => {
-		expect(resolveNames(index, ["all"])).toEqual({
-			ids: ["button", "dialog", "badge"],
-		});
-	});
-
-	it("does not write a file twice when `all` is combined with a name", () => {
-		expect(resolveNames(index, ["button", "all"])).toEqual({
-			ids: ["button", "dialog", "badge"],
-		});
-	});
-
-	it("still lets a real component named `all` win over the keyword", () => {
-		const shadowed = {
-			...index,
-			components: [
-				...index.components,
-				{ component: "all", title: "All", base: "all" },
-			],
-		};
-		expect(resolveNames(shadowed, ["all"])).toEqual({ ids: ["all"] });
+	it("treats a bare `all` as an unknown name, since it is a flag", () => {
+		expect(resolveNames(index, ["all"])).toEqual({ unknown: "all" });
 	});
 
 	it("reports the first unknown name rather than guessing", () => {
@@ -179,7 +160,7 @@ describe("resolveNames with --all", () => {
 		});
 	});
 
-	it("never yields to a component named `all`, unlike the bare word", () => {
+	it("leaves the name `all` free for the registry to use", () => {
 		const shadowed = {
 			...index,
 			components: [
@@ -187,6 +168,7 @@ describe("resolveNames with --all", () => {
 				{ component: "all", title: "All", base: "all" },
 			],
 		};
+		// The flag still means every component, and the name resolves normally.
 		expect(resolveNames(shadowed, [], { all: true })).toEqual({
 			ids: ["button", "dialog", "all"],
 		});

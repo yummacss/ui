@@ -58,14 +58,13 @@ export function targetFileName(id: string, component: string, variant: string) {
  * `autocomplete` and the "large" example of it is `size="lg"`, a prop you pass
  * rather than a second file to own and keep in sync.
  *
- * `--all` expands to every component. The bare word `all` does the same, but is
- * matched *after* the component lookup, so a component genuinely named "all"
- * would still win and the keyword never shadows the registry. The flag has no
- * such ambiguity and so never yields.
+ * Every component is `--all`, a flag rather than a name: a bare `add all` reads
+ * as though the registry contains a component called "all", and reserving the
+ * word would mean the registry could never have one.
  *
- * Components only, either way: blocks are specific compositions, and each one
- * pulls the components it is built from anyway, so including them would write
- * every block on top of every component. Name a block to get it.
+ * Components only: blocks are specific compositions, and each one pulls the
+ * components it is built from anyway, so including them would write every block
+ * on top of every component. Name a block to get it.
  */
 export function resolveNames(
 	index: RegistryIndex,
@@ -82,11 +81,6 @@ export function resolveNames(
 		const component = index.components.find((x) => x.component === name);
 		if (component) {
 			ids.push(component.base);
-			continue;
-		}
-
-		if (name === "all") {
-			ids.push(...index.components.map((x) => x.base));
 			continue;
 		}
 
@@ -151,7 +145,14 @@ export async function add(argv: string[]): Promise<number> {
 	const resolution = resolveNames(index, names, { all: options.all });
 	if ("unknown" in resolution) {
 		p.log.error(`Unknown component or block ${c.bold(resolution.unknown)}.`);
-		suggest(index, resolution.unknown);
+		// The obvious first guess for "give me everything", and the registry has
+		// no component by that name to suggest, so an edit-distance list would
+		// answer a question nobody asked.
+		if (resolution.unknown === "all") {
+			p.log.info(`Every component is ${c.cyan("--all")}.`);
+		} else {
+			suggest(index, resolution.unknown);
+		}
 		return 1;
 	}
 	const pending = resolution.ids;
