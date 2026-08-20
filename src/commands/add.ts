@@ -20,17 +20,19 @@ import {
 } from "../registry";
 
 interface Options {
+	all: boolean;
 	overwrite: boolean;
 	yes: boolean;
 }
 
 function parse(argv: string[]): { names: string[]; options: Options } {
 	const names: string[] = [];
-	const options: Options = { overwrite: false, yes: false };
+	const options: Options = { all: false, overwrite: false, yes: false };
 
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i] as string;
-		if (arg === "--overwrite") options.overwrite = true;
+		if (arg === "--all" || arg === "-a") options.all = true;
+		else if (arg === "--overwrite") options.overwrite = true;
 		else if (arg === "--yes" || arg === "-y") options.yes = true;
 		else if (!arg.startsWith("-")) names.push(arg);
 	}
@@ -56,17 +58,25 @@ export function targetFileName(id: string, component: string, variant: string) {
  * `autocomplete` and the "large" example of it is `size="lg"`, a prop you pass
  * rather than a second file to own and keep in sync.
  *
- * `all` expands to every component. It is matched *after* the component lookup,
- * so a component genuinely named "all" would still win and this never shadows
- * the registry. Components only: blocks are specific compositions, and each one
+ * `--all` expands to every component. The bare word `all` does the same, but is
+ * matched *after* the component lookup, so a component genuinely named "all"
+ * would still win and the keyword never shadows the registry. The flag has no
+ * such ambiguity and so never yields.
+ *
+ * Components only, either way: blocks are specific compositions, and each one
  * pulls the components it is built from anyway, so including them would write
  * every block on top of every component. Name a block to get it.
  */
 export function resolveNames(
 	index: RegistryIndex,
 	names: string[],
+	options: { all?: boolean } = {},
 ): { ids: string[] } | { unknown: string } {
 	const ids: string[] = [];
+
+	// The flag is unambiguous by construction: unlike the bare word, it cannot
+	// be mistaken for a component, so it never yields to one.
+	if (options.all) ids.push(...index.components.map((x) => x.base));
 
 	for (const name of names) {
 		const component = index.components.find((x) => x.component === name);
@@ -117,7 +127,7 @@ export async function add(argv: string[]): Promise<number> {
 	// function boundary.
 	const { registry, componentsDir } = config;
 
-	if (names.length === 0) {
+	if (names.length === 0 && !options.all) {
 		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
 		return 1;
 	}
@@ -138,7 +148,7 @@ export async function add(argv: string[]): Promise<number> {
 		`${index.components.length} components, ${index.blocks.length} blocks available`,
 	);
 
-	const resolution = resolveNames(index, names);
+	const resolution = resolveNames(index, names, { all: options.all });
 	if ("unknown" in resolution) {
 		p.log.error(`Unknown component or block ${c.bold(resolution.unknown)}.`);
 		suggest(index, resolution.unknown);

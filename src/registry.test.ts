@@ -156,3 +156,40 @@ describe("resolveNames", () => {
 		});
 	});
 });
+
+describe("resolveNames with --all", () => {
+	const index = {
+		components: [
+			{ component: "button", title: "Button", base: "button" },
+			{ component: "dialog", title: "Dialog", base: "dialog" },
+		],
+		blocks: [{ id: "dialog-sign-in", component: "dialog" }],
+		generated: 3,
+	};
+
+	it("expands to every component with no names given", () => {
+		expect(resolveNames(index, [], { all: true })).toEqual({
+			ids: ["button", "dialog"],
+		});
+	});
+
+	it("combines with a named block without duplicating anything", () => {
+		expect(resolveNames(index, ["dialog-sign-in"], { all: true })).toEqual({
+			ids: ["button", "dialog", "dialog-sign-in"],
+		});
+	});
+
+	it("never yields to a component named `all`, unlike the bare word", () => {
+		const shadowed = {
+			...index,
+			components: [
+				...index.components,
+				{ component: "all", title: "All", base: "all" },
+			],
+		};
+		expect(resolveNames(shadowed, [], { all: true })).toEqual({
+			ids: ["button", "dialog", "all"],
+		});
+		expect(resolveNames(shadowed, ["all"])).toEqual({ ids: ["all"] });
+	});
+});
