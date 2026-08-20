@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { editDistance, targetFileName } from "./commands/add";
+import { editDistance, resolveNames, targetFileName } from "./commands/add";
 import { fetchIndex, fetchItem, RegistryError } from "./registry";
 
 afterEach(() => {
@@ -104,5 +104,55 @@ describe("registry fetching", () => {
 		await expect(fetchIndex("http://x/ui/r")).rejects.toThrow(
 			/Could not reach the registry/,
 		);
+	});
+});
+
+describe("resolveNames", () => {
+	const index = {
+		components: [
+			{ component: "button", title: "Button", base: "button" },
+			{ component: "dialog", title: "Dialog", base: "dialog" },
+			{ component: "badge", title: "Badge", base: "badge" },
+		],
+		blocks: [
+			{ id: "dialog-sign-in", component: "dialog" },
+			{ id: "button-group", component: "button" },
+		],
+		generated: 5,
+	};
+
+	it("resolves a component by name and a block by its id", () => {
+		expect(resolveNames(index, ["button", "dialog-sign-in"])).toEqual({
+			ids: ["button", "dialog-sign-in"],
+		});
+	});
+
+	it("expands `all` to every component, and no blocks", () => {
+		expect(resolveNames(index, ["all"])).toEqual({
+			ids: ["button", "dialog", "badge"],
+		});
+	});
+
+	it("does not write a file twice when `all` is combined with a name", () => {
+		expect(resolveNames(index, ["button", "all"])).toEqual({
+			ids: ["button", "dialog", "badge"],
+		});
+	});
+
+	it("still lets a real component named `all` win over the keyword", () => {
+		const shadowed = {
+			...index,
+			components: [
+				...index.components,
+				{ component: "all", title: "All", base: "all" },
+			],
+		};
+		expect(resolveNames(shadowed, ["all"])).toEqual({ ids: ["all"] });
+	});
+
+	it("reports the first unknown name rather than guessing", () => {
+		expect(resolveNames(index, ["button", "nope"])).toEqual({
+			unknown: "nope",
+		});
 	});
 });

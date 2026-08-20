@@ -44,9 +44,12 @@ Pass `--force` to overwrite an existing config.
 pnpm dlx yummaui add button
 pnpm dlx yummaui add dialog tooltip
 pnpm dlx yummaui add dialog-sign-in
+pnpm dlx yummaui add all
 ```
 
 Components and blocks share one namespace. A component lands under its own name, so `add button` gives you `button.tsx`; a block keeps its whole id, so `add dialog-sign-in` gives you `dialog-sign-in.tsx` and the file still says what it is.
+
+`add all` copies every component in one go. Components only: a block is a specific composition, and pulls the components it is built from anyway, so name a block when you want one.
 
 There is no way to ask for an example, deliberately. The difference between `autocomplete` and its large demo is `size="lg"` — a prop you pass, not a second file to own and keep in sync.
 

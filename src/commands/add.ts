@@ -48,6 +48,51 @@ export function targetFileName(id: string, component: string, variant: string) {
 	return variant === "base" ? `${component}.tsx` : `${id}.tsx`;
 }
 
+/**
+ * Turns the names on the command line into registry ids.
+ *
+ * One flat namespace: a component by its name, a block by its own id. There is
+ * deliberately no way to ask for an example - the difference between
+ * `autocomplete` and the "large" example of it is `size="lg"`, a prop you pass
+ * rather than a second file to own and keep in sync.
+ *
+ * `all` expands to every component. It is matched *after* the component lookup,
+ * so a component genuinely named "all" would still win and this never shadows
+ * the registry. Components only: blocks are specific compositions, and each one
+ * pulls the components it is built from anyway, so including them would write
+ * every block on top of every component. Name a block to get it.
+ */
+export function resolveNames(
+	index: RegistryIndex,
+	names: string[],
+): { ids: string[] } | { unknown: string } {
+	const ids: string[] = [];
+
+	for (const name of names) {
+		const component = index.components.find((x) => x.component === name);
+		if (component) {
+			ids.push(component.base);
+			continue;
+		}
+
+		if (name === "all") {
+			ids.push(...index.components.map((x) => x.base));
+			continue;
+		}
+
+		const block = index.blocks.find((x) => x.id === name);
+		if (block) {
+			ids.push(block.id);
+			continue;
+		}
+
+		return { unknown: name };
+	}
+
+	// `all` alongside a name, or a name twice, must not write the same file twice.
+	return { ids: [...new Set(ids)] };
+}
+
 export async function add(argv: string[]): Promise<number> {
 	const { names, options } = parse(argv);
 	const projectRoot = findProjectRoot();
@@ -93,29 +138,13 @@ export async function add(argv: string[]): Promise<number> {
 		`${index.components.length} components, ${index.blocks.length} blocks available`,
 	);
 
-	const pending: string[] = [];
-
-	// One flat namespace: a component by its name, a block by its own id.
-	// There is deliberately no way to ask for an example - the difference
-	// between `autocomplete` and the "large" example of it is `size="lg"`,
-	// which is a prop you pass, not a second file to own and keep in sync.
-	for (const name of names) {
-		const component = index.components.find((x) => x.component === name);
-		if (component) {
-			pending.push(component.base);
-			continue;
-		}
-
-		const block = index.blocks.find((x) => x.id === name);
-		if (block) {
-			pending.push(block.id);
-			continue;
-		}
-
-		p.log.error(`Unknown component or block ${c.bold(name)}.`);
-		suggest(index, name);
+	const resolution = resolveNames(index, names);
+	if ("unknown" in resolution) {
+		p.log.error(`Unknown component or block ${c.bold(resolution.unknown)}.`);
+		suggest(index, resolution.unknown);
 		return 1;
 	}
+	const pending = resolution.ids;
 
 	const written: string[] = [];
 	const allDeps = new Map<string, string>();

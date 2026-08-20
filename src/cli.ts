@@ -19,7 +19,7 @@ ${c.bold("Usage")}
 
 ${c.bold("Commands")}
   init                     Set up yummaui.json in this project
-  add <component...>       Copy a component in
+  add <component...>       Copy a component in, or "all" for every one
   list [component]         Browse what is available
 
 ${c.bold("Options")}
@@ -31,6 +31,7 @@ ${c.bold("Options")}
 ${c.bold("Examples")}
   npx yummaui add button
   npx yummaui add dialog tooltip
+  npx yummaui add all
   npx yummaui list button
 `;
 
