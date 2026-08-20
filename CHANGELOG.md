@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- add `yummaui add --all` command, use the '--all' flag to install all components at once.
+- add `yummaui add --all` command, use the `--all` flag to install all components at once.
 
 ## [0.0.1] - 2026-08-16
 
