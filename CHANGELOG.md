@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-20
+
 ### Added
 
-- `add --all` copies every component in one command, instead of naming them one at a time. Components only: a block is a specific composition & pulls the components it is built from anyway, so name a block to get it. A flag rather than a name, so the registry stays free to have a component called "all"; typing `add all` points you at the flag.
+- add `yummaui add --all` command, use the '--all' flag to install all components at once.
 
 ## [0.0.1] - 2026-08-16
 
