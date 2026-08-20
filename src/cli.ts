@@ -23,6 +23,7 @@ ${c.bold("Commands")}
   list [component]         Browse what is available
 
 ${c.bold("Options")}
+  -a, --all                Add every component
       --overwrite          Replace files that already exist
   -y, --yes                Skip prompts, take the defaults
   -h, --help               Show this
@@ -31,6 +32,7 @@ ${c.bold("Options")}
 ${c.bold("Examples")}
   npx yummaui add button
   npx yummaui add dialog tooltip
+  npx yummaui add --all
   npx yummaui list button
 `;
 

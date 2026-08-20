@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { editDistance, targetFileName } from "./commands/add";
+import { editDistance, resolveNames, targetFileName } from "./commands/add";
 import { fetchIndex, fetchItem, RegistryError } from "./registry";
 
 afterEach(() => {
@@ -104,5 +104,74 @@ describe("registry fetching", () => {
 		await expect(fetchIndex("http://x/ui/r")).rejects.toThrow(
 			/Could not reach the registry/,
 		);
+	});
+});
+
+describe("resolveNames", () => {
+	const index = {
+		components: [
+			{ component: "button", title: "Button", base: "button" },
+			{ component: "dialog", title: "Dialog", base: "dialog" },
+			{ component: "badge", title: "Badge", base: "badge" },
+		],
+		blocks: [
+			{ id: "dialog-sign-in", component: "dialog" },
+			{ id: "button-group", component: "button" },
+		],
+		generated: 5,
+	};
+
+	it("resolves a component by name and a block by its id", () => {
+		expect(resolveNames(index, ["button", "dialog-sign-in"])).toEqual({
+			ids: ["button", "dialog-sign-in"],
+		});
+	});
+
+	it("treats a bare `all` as an unknown name, since it is a flag", () => {
+		expect(resolveNames(index, ["all"])).toEqual({ unknown: "all" });
+	});
+
+	it("reports the first unknown name rather than guessing", () => {
+		expect(resolveNames(index, ["button", "nope"])).toEqual({
+			unknown: "nope",
+		});
+	});
+});
+
+describe("resolveNames with --all", () => {
+	const index = {
+		components: [
+			{ component: "button", title: "Button", base: "button" },
+			{ component: "dialog", title: "Dialog", base: "dialog" },
+		],
+		blocks: [{ id: "dialog-sign-in", component: "dialog" }],
+		generated: 3,
+	};
+
+	it("expands to every component with no names given", () => {
+		expect(resolveNames(index, [], { all: true })).toEqual({
+			ids: ["button", "dialog"],
+		});
+	});
+
+	it("combines with a named block without duplicating anything", () => {
+		expect(resolveNames(index, ["dialog-sign-in"], { all: true })).toEqual({
+			ids: ["button", "dialog", "dialog-sign-in"],
+		});
+	});
+
+	it("leaves the name `all` free for the registry to use", () => {
+		const shadowed = {
+			...index,
+			components: [
+				...index.components,
+				{ component: "all", title: "All", base: "all" },
+			],
+		};
+		// The flag still means every component, and the name resolves normally.
+		expect(resolveNames(shadowed, [], { all: true })).toEqual({
+			ids: ["button", "dialog", "all"],
+		});
+		expect(resolveNames(shadowed, ["all"])).toEqual({ ids: ["all"] });
 	});
 });

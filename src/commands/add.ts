@@ -20,17 +20,19 @@ import {
 } from "../registry";
 
 interface Options {
+	all: boolean;
 	overwrite: boolean;
 	yes: boolean;
 }
 
 function parse(argv: string[]): { names: string[]; options: Options } {
 	const names: string[] = [];
-	const options: Options = { overwrite: false, yes: false };
+	const options: Options = { all: false, overwrite: false, yes: false };
 
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i] as string;
-		if (arg === "--overwrite") options.overwrite = true;
+		if (arg === "--all" || arg === "-a") options.all = true;
+		else if (arg === "--overwrite") options.overwrite = true;
 		else if (arg === "--yes" || arg === "-y") options.yes = true;
 		else if (!arg.startsWith("-")) names.push(arg);
 	}
@@ -46,6 +48,53 @@ function parse(argv: string[]): { names: string[]; options: Options } {
  */
 export function targetFileName(id: string, component: string, variant: string) {
 	return variant === "base" ? `${component}.tsx` : `${id}.tsx`;
+}
+
+/**
+ * Turns the names on the command line into registry ids.
+ *
+ * One flat namespace: a component by its name, a block by its own id. There is
+ * deliberately no way to ask for an example - the difference between
+ * `autocomplete` and the "large" example of it is `size="lg"`, a prop you pass
+ * rather than a second file to own and keep in sync.
+ *
+ * Every component is `--all`, a flag rather than a name: a bare `add all` reads
+ * as though the registry contains a component called "all", and reserving the
+ * word would mean the registry could never have one.
+ *
+ * Components only: blocks are specific compositions, and each one pulls the
+ * components it is built from anyway, so including them would write every block
+ * on top of every component. Name a block to get it.
+ */
+export function resolveNames(
+	index: RegistryIndex,
+	names: string[],
+	options: { all?: boolean } = {},
+): { ids: string[] } | { unknown: string } {
+	const ids: string[] = [];
+
+	// The flag is unambiguous by construction: unlike the bare word, it cannot
+	// be mistaken for a component, so it never yields to one.
+	if (options.all) ids.push(...index.components.map((x) => x.base));
+
+	for (const name of names) {
+		const component = index.components.find((x) => x.component === name);
+		if (component) {
+			ids.push(component.base);
+			continue;
+		}
+
+		const block = index.blocks.find((x) => x.id === name);
+		if (block) {
+			ids.push(block.id);
+			continue;
+		}
+
+		return { unknown: name };
+	}
+
+	// `all` alongside a name, or a name twice, must not write the same file twice.
+	return { ids: [...new Set(ids)] };
 }
 
 export async function add(argv: string[]): Promise<number> {
@@ -72,7 +121,7 @@ export async function add(argv: string[]): Promise<number> {
 	// function boundary.
 	const { registry, componentsDir } = config;
 
-	if (names.length === 0) {
+	if (names.length === 0 && !options.all) {
 		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
 		return 1;
 	}
@@ -93,29 +142,20 @@ export async function add(argv: string[]): Promise<number> {
 		`${index.components.length} components, ${index.blocks.length} blocks available`,
 	);
 
-	const pending: string[] = [];
-
-	// One flat namespace: a component by its name, a block by its own id.
-	// There is deliberately no way to ask for an example - the difference
-	// between `autocomplete` and the "large" example of it is `size="lg"`,
-	// which is a prop you pass, not a second file to own and keep in sync.
-	for (const name of names) {
-		const component = index.components.find((x) => x.component === name);
-		if (component) {
-			pending.push(component.base);
-			continue;
+	const resolution = resolveNames(index, names, { all: options.all });
+	if ("unknown" in resolution) {
+		p.log.error(`Unknown component or block ${c.bold(resolution.unknown)}.`);
+		// The obvious first guess for "give me everything", and the registry has
+		// no component by that name to suggest, so an edit-distance list would
+		// answer a question nobody asked.
+		if (resolution.unknown === "all") {
+			p.log.info(`Every component is ${c.cyan("--all")}.`);
+		} else {
+			suggest(index, resolution.unknown);
 		}
-
-		const block = index.blocks.find((x) => x.id === name);
-		if (block) {
-			pending.push(block.id);
-			continue;
-		}
-
-		p.log.error(`Unknown component or block ${c.bold(name)}.`);
-		suggest(index, name);
 		return 1;
 	}
+	const pending = resolution.ids;
 
 	const written: string[] = [];
 	const allDeps = new Map<string, string>();
