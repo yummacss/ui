@@ -15,8 +15,10 @@ import {
 import {
 	fetchIndex,
 	fetchItem,
+	fetchStyles,
 	RegistryError,
 	type RegistryIndex,
+	resolveStyle,
 } from "../registry";
 import { warnStyling } from "../styling";
 
@@ -24,15 +26,28 @@ interface Options {
 	all: boolean;
 	overwrite: boolean;
 	yes: boolean;
+	style: string | null;
+	radius: string | null;
 }
 
-function parse(argv: string[]): { names: string[]; options: Options } {
+export function parse(argv: string[]): { names: string[]; options: Options } {
 	const names: string[] = [];
-	const options: Options = { all: false, overwrite: false, yes: false };
+	const options: Options = {
+		all: false,
+		overwrite: false,
+		yes: false,
+		style: null,
+		radius: null,
+	};
 
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i] as string;
-		if (arg === "--all" || arg === "-a") options.all = true;
+		const [flag, inline] = arg.split("=", 2) as [string, string | undefined];
+		if (flag === "--style" || flag === "--radius") {
+			const value = inline ?? argv[++i] ?? null;
+			if (flag === "--style") options.style = value;
+			else options.radius = value;
+		} else if (arg === "--all" || arg === "-a") options.all = true;
 		else if (arg === "--overwrite") options.overwrite = true;
 		else if (arg === "--yes" || arg === "-y") options.yes = true;
 		else if (!arg.startsWith("-")) names.push(arg);
@@ -90,7 +105,8 @@ export async function add(argv: string[]): Promise<number> {
 		);
 		return 1;
 	}
-	const { registry, componentsDir } = config;
+	const { componentsDir } = config;
+	let registry = config.registry;
 
 	if (names.length === 0 && !options.all) {
 		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
@@ -112,6 +128,29 @@ export async function add(argv: string[]): Promise<number> {
 	s.stop(
 		`${index.components.length} components, ${index.blocks.length} blocks available`,
 	);
+
+	const style = options.style ?? config.style ?? null;
+	const radius = options.radius ?? config.radius ?? null;
+	if (style || radius) {
+		try {
+			const styled = resolveStyle(
+				await fetchStyles(config.registry),
+				style,
+				radius,
+			);
+			if ("error" in styled) {
+				p.log.error(styled.error);
+				return 1;
+			}
+			registry = `${config.registry}/${styled.folder}`;
+			p.log.info(`Style ${c.bold(styled.folder)}`);
+		} catch (error) {
+			p.log.error(
+				error instanceof RegistryError ? error.message : String(error),
+			);
+			return 1;
+		}
+	}
 
 	const resolution = resolveNames(index, names, { all: options.all });
 	if ("unknown" in resolution) {

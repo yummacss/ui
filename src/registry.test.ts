@@ -1,6 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { editDistance, resolveNames, targetFileName } from "./commands/add";
-import { fetchIndex, fetchItem, RegistryError } from "./registry";
+import {
+	editDistance,
+	parse,
+	resolveNames,
+	targetFileName,
+} from "./commands/add";
+import {
+	fetchIndex,
+	fetchItem,
+	fetchStyles,
+	RegistryError,
+	resolveStyle,
+	type StylesTable,
+} from "./registry";
 
 afterEach(() => {
 	vi.unstubAllGlobals();
@@ -161,5 +173,72 @@ describe("resolveNames with --all", () => {
 			ids: ["button", "dialog", "all"],
 		});
 		expect(resolveNames(shadowed, ["all"])).toEqual({ ids: ["all"] });
+	});
+});
+
+describe("styles", () => {
+	const table: StylesTable = {
+		default: "soft",
+		styles: {
+			soft: {
+				name: "Soft",
+				radius: "large",
+				allow: ["small", "medium", "large", "extra"],
+				refused: { none: "Soft is rounded. No radius is a square." },
+			},
+			squircle: {
+				name: "Squircle",
+				radius: "large",
+				allow: ["medium", "large"],
+				refused: { none: "A squircle with no radius is a square." },
+			},
+		},
+	};
+
+	it("picks the folder for a style and its default radius", () => {
+		expect(resolveStyle(table, "squircle", null)).toEqual({
+			folder: "squircle-large",
+		});
+		expect(resolveStyle(table, null, "small")).toEqual({
+			folder: "soft-small",
+		});
+	});
+
+	it("refuses a blocked pair with the reason", () => {
+		const result = resolveStyle(table, "squircle", "none");
+		expect(result).toEqual({
+			error:
+				"A squircle with no radius is a square. Squircle takes: medium, large.",
+		});
+	});
+
+	it("names the styles that exist", () => {
+		expect(resolveStyle(table, "glass", null)).toEqual({
+			error: "There is no glass style. Try one of: soft, squircle.",
+		});
+	});
+
+	it("fetches styles.json from the registry root", async () => {
+		respond(JSON.stringify(table));
+		await expect(fetchStyles("https://x.test/ui/r")).resolves.toEqual(table);
+		expect(fetch).toHaveBeenCalledWith(
+			"https://x.test/ui/r/styles.json",
+			expect.anything(),
+		);
+	});
+});
+
+describe("parse", () => {
+	it("reads --style and --radius, spaced or with =", () => {
+		expect(parse(["button", "--style", "compact", "--radius=small"])).toEqual({
+			names: ["button"],
+			options: {
+				all: false,
+				overwrite: false,
+				yes: false,
+				style: "compact",
+				radius: "small",
+			},
+		});
 	});
 });

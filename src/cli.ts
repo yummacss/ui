@@ -24,6 +24,8 @@ ${c.bold("Commands")}
 
 ${c.bold("Options")}
   -a, --all                Add every component
+      --style <name>       add: soft, compact or squircle
+      --radius <step>      add: none, small, medium, large or extra
       --overwrite          Replace files that already exist
       --write              prune: delete, instead of only listing
   -y, --yes                Skip prompts, take the defaults
@@ -33,6 +35,7 @@ ${c.bold("Options")}
 ${c.bold("Examples")}
   ${run} add button
   ${run} add dialog tooltip
+  ${run} add button --style compact --radius small
   ${run} add --all
   ${run} list button
   ${run} prune

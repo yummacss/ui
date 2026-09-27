@@ -18,3 +18,12 @@ can stay to what changed.
 - A publish run from a laptop cannot work no matter how the credentials are
   set up: `provenance: true` needs the `id-token: write` OIDC token, which
   only a workflow run has.
+
+## Styles, 2026-09-27
+
+`add --style` and `--radius` read `styles.json` from the registry root, check
+the pair, and fetch items from `<registry>/<style>-<radius>/` instead of the
+root. Nothing else in `add` knows about styles. The docs site builds those
+folders with the same `applyStyle` its tests cover, so the CLI holds no copy
+of the rules: a refusal it prints is the reason `styles.json` gives.
+

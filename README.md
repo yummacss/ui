@@ -39,13 +39,20 @@ pnpm dlx yummaui add button
 pnpm dlx yummaui add dialog tooltip
 pnpm dlx yummaui add dialog-sign-in
 pnpm dlx yummaui add --all
+pnpm dlx yummaui add button --style compact --radius small
 ```
 
-| Option        |                                    |
-|---------------|------------------------------------|
-| `-a, --all`   | Add every component                |
-| `--overwrite` | Replace files that already exist   |
-| `-y, --yes`   | Skip prompts and take the defaults |
+| Option             |                                                   |
+|--------------------|---------------------------------------------------|
+| `-a, --all`        | Add every component                               |
+| `--style <name>`   | `soft`, `compact` or `squircle`                   |
+| `--radius <step>`  | `none`, `small`, `medium`, `large` or `extra`     |
+| `--overwrite`      | Replace files that already exist                  |
+| `-y, --yes`        | Skip prompts and take the defaults                |
+
+A style and radius set as `style` and `radius` in `yummaui.json` apply to
+every `add`; the flags win over them. Each style takes some radius steps and
+refuses the rest, and `add` says why.
 
 ### `list [component]`
 
@@ -81,6 +88,8 @@ The CLI reads a static JSON registry published by the docs site:
 ```
 https://yummacss.com/ui/r/index.json      every component and block
 https://yummacss.com/ui/r/<id>.json       one component's source and dependencies
+https://yummacss.com/ui/r/styles.json     the styles and the radius steps each takes
+https://yummacss.com/ui/r/<style>-<radius>/<id>.json   the same, rewritten for a style
 ```
 
 ## License
