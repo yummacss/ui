@@ -75,3 +75,41 @@ export function fetchIndex(registry: string): Promise<RegistryIndex> {
 export function fetchItem(registry: string, id: string): Promise<RegistryItem> {
 	return getJson<RegistryItem>(`${registry}/${id}.json`);
 }
+
+export interface StyleSpec {
+	name: string;
+	radius: string;
+	allow: string[];
+	refused: Record<string, string>;
+}
+
+export interface StylesTable {
+	default: string;
+	styles: Record<string, StyleSpec>;
+}
+
+export function fetchStyles(registry: string): Promise<StylesTable> {
+	return getJson<StylesTable>(`${registry}/styles.json`);
+}
+
+// the registry folder for a style and radius, or why the pair is refused
+export function resolveStyle(
+	table: StylesTable,
+	style: string | null,
+	radius: string | null,
+): { folder: string } | { error: string } {
+	const name = style ?? table.default;
+	const spec = table.styles[name];
+	if (!spec) {
+		const known = Object.keys(table.styles).join(", ");
+		return { error: `There is no ${name} style. Try one of: ${known}.` };
+	}
+	const step = radius ?? spec.radius;
+	if (!spec.allow.includes(step)) {
+		const reason = spec.refused[step] ?? `${spec.name} does not take ${step}.`;
+		return {
+			error: `${reason} ${spec.name} takes: ${spec.allow.join(", ")}.`,
+		};
+	}
+	return { folder: `${name}-${step}` };
+}
