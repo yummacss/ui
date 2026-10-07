@@ -111,7 +111,6 @@ export function installableFileNames(index: RegistryIndex): Set<string> {
 	const names = new Set<string>();
 	for (const component of index.components)
 		names.add(`${component.component}.tsx`);
-	for (const block of index.blocks) names.add(`${block.id}.tsx`);
 	return names;
 }
 

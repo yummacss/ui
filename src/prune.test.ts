@@ -33,7 +33,7 @@ afterEach(() => {
 
 const INSTALLABLE = new Set([
 	"button.tsx",
-	"button-group-pill.tsx",
+	"button-group.tsx",
 	"dialog.tsx",
 	"dialog-sign-in.tsx",
 	"tooltip.tsx",
@@ -145,17 +145,13 @@ describe("installableFileNames", () => {
 			components: [
 				{ component: "button", title: "Button", base: "button-base" },
 			],
-			blocks: [{ id: "button-group-pill", component: "button" }],
 			generated: 0,
 		};
 		const names = installableFileNames(index);
 		expect(names.has(targetFileName("button-base", "button", "base"))).toBe(
 			true,
 		);
-		expect(
-			names.has(targetFileName("button-group-pill", "button", "group-pill")),
-		).toBe(true);
-		expect(names.size).toBe(2);
+		expect(names.size).toBe(1);
 	});
 });
 
@@ -174,26 +170,26 @@ describe("findUnused", () => {
 		expect(result.kept).toBe(1);
 	});
 
-	it("drops a block and the component only that block imports", () => {
+	it("drops a component and the one only it imports", () => {
 		const root = project({
 			"package.json": "{}",
 			"app/page.tsx": `export default function Page() { return null; }`,
 			"components/ui/button.tsx": "export const Button = () => null;",
-			"components/ui/button-group-pill.tsx": `import { Button } from "./button";`,
+			"components/ui/button-group.tsx": `import { Button } from "./button";`,
 		});
 		const result = findUnused(shape(root), INSTALLABLE);
 		expect(result.unused.map((f) => f.split(/[\\/]/).pop()).sort()).toEqual([
-			"button-group-pill.tsx",
+			"button-group.tsx",
 			"button.tsx",
 		]);
 	});
 
-	it("keeps the component when the block that imports it is itself used", () => {
+	it("keeps a component that a used component imports", () => {
 		const root = project({
 			"package.json": "{}",
-			"app/page.tsx": `import { X } from "../components/ui/button-group-pill";`,
+			"app/page.tsx": `import { X } from "../components/ui/button-group";`,
 			"components/ui/button.tsx": "export const Button = () => null;",
-			"components/ui/button-group-pill.tsx": `import { Button } from "./button";`,
+			"components/ui/button-group.tsx": `import { Button } from "./button";`,
 		});
 		expect(findUnused(shape(root), INSTALLABLE).unused).toEqual([]);
 	});

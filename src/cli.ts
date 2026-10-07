@@ -1,72 +1,100 @@
-import c from "picocolors";
-import { version as VERSION } from "../package.json";
+import { parseArgs } from "node:util";
+import { version } from "../package.json";
 import { add } from "./commands/add";
 import { init } from "./commands/init";
 import { list } from "./commands/list";
 import { prune } from "./commands/prune";
 import { runner } from "./project";
+import { c } from "./ui";
+
+const options = {
+	all: { type: "boolean", short: "a" },
+	style: { type: "string" },
+	radius: { type: "string" },
+	overwrite: { type: "boolean" },
+	write: { type: "boolean" },
+	force: { type: "boolean" },
+	yes: { type: "boolean", short: "y" },
+	help: { type: "boolean", short: "h" },
+	version: { type: "boolean", short: "V" },
+} as const;
+
+export type Flags = ReturnType<typeof parse>["values"];
+
+const parse = (args: string[]) =>
+	parseArgs({ args, options, allowPositionals: true });
 
 const help = () => {
 	const run = runner();
+	const row = (name: string, text: string) =>
+		`  ${c.cyan(name.padEnd(24))}${text}`;
+
 	return `
-${c.bold("yummaui")} ${c.dim(`v${VERSION}`)}
+${c.bold("yummaui")} ${c.dim(`v${version}`)}  Copies Yumma UI components into your project.
 
-  Copies Yumma UI components into your project. Never a dependency.
-
-${c.bold("Usage")}
-  ${run} <command> [options]
+${c.bold("Usage")}  ${run} <command> [options]
 
 ${c.bold("Commands")}
-  init                     Set up yummaui.json in this project
-  add <component...>       Copy a component in
-  list [component]         Browse what is available
-  prune                    Find components nothing uses
+${row("init", "Write yummaui.json for this project")}
+${row("add [components]", "Copy components in, or pick from a list")}
+${row("list", "Show every component")}
+${row("prune", "Find components nothing uses")}
 
 ${c.bold("Options")}
-  -a, --all                Add every component
-      --style <name>       add: soft, compact or squircle
-      --radius <step>      add: none, small, medium, large or extra
-      --overwrite          Replace files that already exist
-      --write              prune: delete, instead of only listing
-  -y, --yes                Skip prompts, take the defaults
-  -h, --help               Show this
-      --version            Show the version
+${row("-a, --all", "add: every component")}
+${row("--style <name>", "add: soft, compact or squircle")}
+${row("--radius <step>", "add: none, small, medium, large or extra")}
+${row("--overwrite", "add: replace files that exist")}
+${row("--write", "prune: delete what it finds")}
+${row("--force", "init: replace yummaui.json")}
+${row("-y, --yes", "Skip prompts and take the defaults")}
 
 ${c.bold("Examples")}
-  ${run} add button
-  ${run} add dialog tooltip
+  ${run} add button tooltip
   ${run} add button --style compact --radius small
-  ${run} add --all
-  ${run} list button
-  ${run} prune
+  ${run} prune --write
 `;
 };
 
 async function main(): Promise<number> {
-	const argv = process.argv.slice(2);
-	const command = argv[0];
+	let parsed: ReturnType<typeof parse>;
+	try {
+		parsed = parse(process.argv.slice(2));
+	} catch (error) {
+		const unknown =
+			(error as { code?: string }).code === "ERR_PARSE_ARGS_UNKNOWN_OPTION";
+		const option = String(error).match(/'(-[^']+)'/)?.[1];
+		console.error(
+			c.red(
+				unknown
+					? `Unknown option ${option}.`
+					: String((error as Error).message),
+			),
+		);
+		console.error(`Run ${runner()} --help.`);
+		return 1;
+	}
+	const { values, positionals } = parsed;
+	const [command, ...names] = positionals;
 
-	if (!command || command === "-h" || command === "--help") {
-		console.log(help());
+	if (values.version) {
+		console.log(version);
 		return 0;
 	}
-	if (command === "--version" || command === "-V") {
-		console.log(VERSION);
-		return 0;
-	}
 
-	const rest = argv.slice(1);
-
-	switch (command) {
+	switch (values.help ? undefined : command) {
 		case "init":
-			return init(rest);
+			return init(values);
 		case "add":
-			return add(rest);
+			return add(names, values);
 		case "list":
 		case "ls":
-			return list(rest);
+			return list();
 		case "prune":
-			return prune(rest);
+			return prune(values);
+		case undefined:
+			console.log(help());
+			return 0;
 		default:
 			console.error(c.red(`Unknown command "${command}".`));
 			console.log(help());

@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-	editDistance,
-	parse,
-	resolveNames,
-	targetFileName,
-} from "./commands/add";
+import { nearest, resolveNames, targetFileName } from "./commands/add";
 import {
 	fetchIndex,
 	fetchItem,
@@ -33,26 +28,29 @@ describe("targetFileName", () => {
 		);
 	});
 
-	it("keeps the whole id for a block", () => {
-		expect(targetFileName("dialog-sign-in", "dialog", "sign-in")).toBe(
-			"dialog-sign-in.tsx",
-		);
-		expect(targetFileName("button-group", "button", "group")).toBe(
-			"button-group.tsx",
+	it("keeps the whole id for an example", () => {
+		expect(targetFileName("select-grouped", "select", "grouped")).toBe(
+			"select-grouped.tsx",
 		);
 	});
 });
 
-describe("editDistance", () => {
-	it("scores the typos that substring matching misses", () => {
-		expect(editDistance("button", "buton")).toBe(1);
-		expect(editDistance("accordion", "accordian")).toBe(1);
-		expect(editDistance("dialog", "dialgo")).toBe(2);
+describe("nearest", () => {
+	const index = {
+		components: ["button", "button-group", "accordion", "dialog"].map(
+			(component) => ({ component, title: component, base: component }),
+		),
+		generated: 0,
+	};
+
+	it("suggests the names a typo is close to, nearest first", () => {
+		expect(nearest(index, "buton")).toEqual(["button"]);
+		expect(nearest(index, "accordian")).toEqual(["accordion"]);
+		expect(nearest(index, "dialgo")).toEqual(["dialog"]);
 	});
 
-	it("is zero for an exact match and large for an unrelated word", () => {
-		expect(editDistance("button", "button")).toBe(0);
-		expect(editDistance("button", "zzzzz")).toBeGreaterThan(2);
+	it("suggests nothing for an unrelated word", () => {
+		expect(nearest(index, "zzzzz")).toEqual([]);
 	});
 });
 
@@ -115,16 +113,12 @@ describe("resolveNames", () => {
 			{ component: "dialog", title: "Dialog", base: "dialog" },
 			{ component: "badge", title: "Badge", base: "badge" },
 		],
-		blocks: [
-			{ id: "dialog-sign-in", component: "dialog" },
-			{ id: "button-group", component: "button" },
-		],
 		generated: 5,
 	};
 
-	it("resolves a component by name and a block by its id", () => {
-		expect(resolveNames(index, ["button", "dialog-sign-in"])).toEqual({
-			ids: ["button", "dialog-sign-in"],
+	it("resolves components by name", () => {
+		expect(resolveNames(index, ["button", "dialog"])).toEqual({
+			ids: ["button", "dialog"],
 		});
 	});
 
@@ -145,7 +139,6 @@ describe("resolveNames with --all", () => {
 			{ component: "button", title: "Button", base: "button" },
 			{ component: "dialog", title: "Dialog", base: "dialog" },
 		],
-		blocks: [{ id: "dialog-sign-in", component: "dialog" }],
 		generated: 3,
 	};
 
@@ -155,9 +148,9 @@ describe("resolveNames with --all", () => {
 		});
 	});
 
-	it("combines with a named block without duplicating anything", () => {
-		expect(resolveNames(index, ["dialog-sign-in"], { all: true })).toEqual({
-			ids: ["button", "dialog", "dialog-sign-in"],
+	it("combines with a named component without duplicating it", () => {
+		expect(resolveNames(index, ["dialog"], { all: true })).toEqual({
+			ids: ["button", "dialog"],
 		});
 	});
 
@@ -225,20 +218,5 @@ describe("styles", () => {
 			"https://x.test/ui/r/styles.json",
 			expect.anything(),
 		);
-	});
-});
-
-describe("parse", () => {
-	it("reads --style and --radius, spaced or with =", () => {
-		expect(parse(["button", "--style", "compact", "--radius=small"])).toEqual({
-			names: ["button"],
-			options: {
-				all: false,
-				overwrite: false,
-				yes: false,
-				style: "compact",
-				radius: "small",
-			},
-		});
 	});
 });

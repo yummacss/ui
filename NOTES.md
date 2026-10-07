@@ -27,3 +27,15 @@ root. Nothing else in `add` knows about styles. The docs site builds those
 folders with the same `applyStyle` its tests cover, so the CLI holds no copy
 of the rules: a refusal it prints is the reason `styles.json` gives.
 
+
+## Output
+
+Every command opens with `intro()` and ends in `p.outro` or `fail()` from
+`src/ui.ts`, so errors print inside the same frame as everything else. Colour
+is `styleText` from `node:util`; `@clack/prompts` 1.x needs nothing more.
+Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
+error rather than a silent default. `add` installs through `p.taskLog`, which
+folds the package manager's output away on success and keeps it on failure.
+
+The registry's `index.json` still carries an empty `blocks` array, which the
+CLI ignores: blocks never shipped.

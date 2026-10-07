@@ -1,60 +1,24 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import * as p from "@clack/prompts";
-import c from "picocolors";
+import { distance } from "fastest-levenshtein";
+import type { Flags } from "../cli";
 import {
-	CONFIG_FILE,
 	detectPackageManager,
-	findProjectRoot,
 	installCommand,
 	missingDependencies,
-	readConfig,
 	runner,
 } from "../project";
 import {
-	fetchIndex,
 	fetchItem,
 	fetchStyles,
-	RegistryError,
 	type RegistryIndex,
+	type RegistryItem,
 	resolveStyle,
 } from "../registry";
 import { warnStyling } from "../styling";
-
-interface Options {
-	all: boolean;
-	overwrite: boolean;
-	yes: boolean;
-	style: string | null;
-	radius: string | null;
-}
-
-export function parse(argv: string[]): { names: string[]; options: Options } {
-	const names: string[] = [];
-	const options: Options = {
-		all: false,
-		overwrite: false,
-		yes: false,
-		style: null,
-		radius: null,
-	};
-
-	for (let i = 0; i < argv.length; i++) {
-		const arg = argv[i] as string;
-		const [flag, inline] = arg.split("=", 2) as [string, string | undefined];
-		if (flag === "--style" || flag === "--radius") {
-			const value = inline ?? argv[++i] ?? null;
-			if (flag === "--style") options.style = value;
-			else options.radius = value;
-		} else if (arg === "--all" || arg === "-a") options.all = true;
-		else if (arg === "--overwrite") options.overwrite = true;
-		else if (arg === "--yes" || arg === "-y") options.yes = true;
-		else if (!arg.startsWith("-")) names.push(arg);
-	}
-
-	return { names, options };
-}
+import { c, cancelled, fail, intro, loadIndex, plural, project } from "../ui";
 
 export function targetFileName(id: string, component: string, variant: string) {
 	return variant === "base" ? `${component}.tsx` : `${id}.tsx`;
@@ -71,66 +35,75 @@ export function resolveNames(
 
 	for (const name of names) {
 		const component = index.components.find((x) => x.component === name);
-		if (component) {
-			ids.push(component.base);
-			continue;
-		}
-
-		const block = index.blocks.find((x) => x.id === name);
-		if (block) {
-			ids.push(block.id);
-			continue;
-		}
-
-		return { unknown: name };
+		if (!component) return { unknown: name };
+		ids.push(component.base);
 	}
 
 	return { ids: [...new Set(ids)] };
 }
 
-export async function add(argv: string[]): Promise<number> {
-	const { names, options } = parse(argv);
-	const projectRoot = findProjectRoot();
+// the closest names to a typo, nearest first
+export function nearest(index: RegistryIndex, name: string): string[] {
+	return index.components
+		.map(({ component }) => ({
+			component,
+			score:
+				component.includes(name) || name.includes(component)
+					? 0
+					: distance(component, name),
+		}))
+		.filter((x) => x.score <= 2)
+		.sort((a, b) => a.score - b.score)
+		.slice(0, 5)
+		.map((x) => x.component);
+}
 
-	if (!projectRoot) {
-		p.log.error("No package.json found. Run this inside a project.");
-		return 1;
-	}
-	const root = projectRoot;
+export async function add(names: string[], flags: Flags): Promise<number> {
+	intro();
 
-	const config = readConfig(root);
-	if (!config) {
-		p.log.error(
-			`No ${CONFIG_FILE} found. Run ${c.cyan(`${runner(root)} init`)} first.`,
-		);
-		return 1;
-	}
-	const { componentsDir } = config;
-	let registry = config.registry;
+	const found = project();
+	if (typeof found === "string") return fail(found);
+	const { root, config } = found;
 
-	if (names.length === 0 && !options.all) {
-		p.log.error(`Nothing to add. Try: ${runner(root)} add button`);
-		return 1;
-	}
-
-	p.intro(c.bgCyan(c.black(" Yumma UI ")));
-
-	let index: Awaited<ReturnType<typeof fetchIndex>>;
-	const s = p.spinner();
-	s.start("Fetching registry");
+	let index: RegistryIndex;
 	try {
-		index = await fetchIndex(config.registry);
+		index = await loadIndex(config.registry);
 	} catch (error) {
-		s.stop("Registry unavailable", 1);
-		p.log.error(error instanceof RegistryError ? error.message : String(error));
-		return 1;
+		return fail(error);
 	}
-	s.stop(
-		`${index.components.length} components, ${index.blocks.length} blocks available`,
-	);
 
-	const style = options.style ?? config.style ?? null;
-	const radius = options.radius ?? config.radius ?? null;
+	if (names.length === 0 && !flags.all) {
+		if (flags.yes || !process.stdout.isTTY) {
+			return fail(`Name a component: ${runner(root)} add button`);
+		}
+		const picked = await p.autocompleteMultiselect({
+			message: "Which components?",
+			placeholder: "Type to search",
+			options: index.components.map((x) => ({
+				value: x.component,
+				label: x.component,
+			})),
+			required: true,
+		});
+		if (p.isCancel(picked)) return cancelled();
+		names = picked;
+	}
+
+	const resolution = resolveNames(index, names, { all: flags.all });
+	if ("unknown" in resolution) {
+		const near = nearest(index, resolution.unknown);
+		return fail(
+			`There is no ${c.bold(resolution.unknown)} component. ${
+				near.length
+					? `Did you mean ${near.join(", ")}?`
+					: `${runner(root)} list shows them all.`
+			}`,
+		);
+	}
+
+	let registry = config.registry;
+	const style = flags.style ?? config.style ?? null;
+	const radius = flags.radius ?? config.radius ?? null;
 	if (style || radius) {
 		try {
 			const styled = resolveStyle(
@@ -138,194 +111,149 @@ export async function add(argv: string[]): Promise<number> {
 				style,
 				radius,
 			);
-			if ("error" in styled) {
-				p.log.error(styled.error);
-				return 1;
-			}
+			if ("error" in styled) return fail(styled.error);
 			registry = `${config.registry}/${styled.folder}`;
 			p.log.info(`Style ${c.bold(styled.folder)}`);
 		} catch (error) {
-			p.log.error(
-				error instanceof RegistryError ? error.message : String(error),
-			);
-			return 1;
+			return fail(error);
 		}
 	}
 
-	const resolution = resolveNames(index, names, { all: options.all });
-	if ("unknown" in resolution) {
-		p.log.error(`Unknown component or block ${c.bold(resolution.unknown)}.`);
-		if (resolution.unknown === "all") {
-			p.log.info(`Every component is ${c.cyan("--all")}.`);
-		} else {
-			suggest(index, resolution.unknown);
-		}
-		return 1;
+	// every item the request needs, its registry dependencies first
+	const items: RegistryItem[] = [];
+	const seen = new Set<string>();
+	async function collect(id: string): Promise<void> {
+		if (seen.has(id)) return;
+		seen.add(id);
+		const item = await fetchItem(registry, id);
+		for (const dep of item.registryDependencies) await collect(dep);
+		items.push(item);
 	}
-	const pending = resolution.ids;
+	try {
+		for (const id of resolution.ids) await collect(id);
+	} catch (error) {
+		return fail(error);
+	}
 
 	const written: string[] = [];
-	const allDeps = new Map<string, string>();
-	const resolved = new Set<string>();
+	const skipped: string[] = [];
+	const deps = new Map<string, string>();
 
-	async function writeTarget(
-		id: string,
-		promptOnConflict: boolean,
-	): Promise<boolean> {
-		if (resolved.has(id)) return true;
-		resolved.add(id);
+	for (const item of items) {
+		const source = item.files[0];
+		if (!source) return fail(`${item.id} has no files.`);
 
-		let item: Awaited<ReturnType<typeof fetchItem>>;
-		try {
-			item = await fetchItem(registry, id);
-		} catch (error) {
-			p.log.error(
-				error instanceof RegistryError ? error.message : String(error),
-			);
-			return false;
-		}
-
-		for (const dep of item.registryDependencies) {
-			if (!(await writeTarget(dep, false))) return false;
-		}
-
-		const fileName = targetFileName(item.id, item.component, item.variant);
-		const dest = join(root, componentsDir, fileName);
+		const dest = join(
+			root,
+			config.componentsDir,
+			targetFileName(item.id, item.component, item.variant),
+		);
 		const shown = relative(root, dest).replace(/\\/g, "/");
 
-		if (existsSync(dest) && !options.overwrite) {
-			if (!promptOnConflict || options.yes) {
-				p.log.warn(`Skipped ${shown} (already exists)`);
-				return true;
+		if (existsSync(dest) && !flags.overwrite) {
+			// only what was asked for by name is worth a question
+			const asked = resolution.ids.includes(item.id);
+			if (!asked || flags.yes || !process.stdout.isTTY) {
+				skipped.push(shown);
+				continue;
 			}
 			const answer = await p.confirm({
-				message: `${shown} already exists. Overwrite?`,
+				message: `${shown} exists. Replace it?`,
 				initialValue: false,
 			});
-			if (p.isCancel(answer)) {
-				p.cancel("Cancelled.");
-				return false;
-			}
+			if (p.isCancel(answer)) return cancelled();
 			if (!answer) {
-				p.log.warn(`Skipped ${shown}`);
-				return true;
+				skipped.push(shown);
+				continue;
 			}
-		}
-
-		const source = item.files[0];
-		if (!source) {
-			p.log.error(`${id} has no files.`);
-			return false;
 		}
 
 		mkdirSync(dirname(dest), { recursive: true });
 		writeFileSync(dest, source.content);
 		written.push(shown);
-
-		for (const dep of item.dependencies) allDeps.set(dep.name, dep.version);
-		return true;
+		for (const dep of item.dependencies) deps.set(dep.name, dep.version);
 	}
 
-	for (const id of pending) {
-		if (!(await writeTarget(id, true))) return 1;
+	if (written.length > 0) {
+		p.log.success(
+			`Added ${plural(written.length, "file")}\n${written.map((f) => c.dim(f)).join("\n")}`,
+		);
 	}
-
+	if (skipped.length > 0) {
+		p.log.warn(
+			`Kept ${plural(skipped.length, "file")} already there\n${skipped.map((f) => c.dim(f)).join("\n")}`,
+		);
+	}
 	if (written.length === 0) {
 		p.outro("Nothing written.");
 		return 0;
 	}
 
-	p.log.success(`Added\n${written.map((f) => `  ${f}`).join("\n")}`);
-
 	const missing = missingDependencies(
 		root,
-		[...allDeps].map(([name, version]) => ({ name, version })),
+		[...deps].map(([name, version]) => ({ name, version })),
 	);
-	const satisfied = [...allDeps.keys()].filter(
-		(name) => !missing.some((m) => m.name === name),
-	);
-
-	if (allDeps.size > 0) {
-		const lines = [
-			...satisfied.map(
-				(n) => `  ${c.green("✔")} ${n} ${c.dim("already installed")}`,
-			),
-			...missing.map((d) => `  ${c.yellow("+")} ${d.name}@${d.version}`),
-		];
-		p.log.info(`Dependencies\n${lines.join("\n")}`);
-	}
 
 	if (missing.length > 0) {
 		const pm = detectPackageManager(root);
 		const specs = missing.map((d) => `${d.name}@${d.version}`);
 
-		let install = options.yes;
+		let install = flags.yes === true;
 		if (!install) {
 			const answer = await p.confirm({
-				message: `Install ${missing.length} missing package${missing.length > 1 ? "s" : ""} with ${c.bold(pm)}?`,
+				message: `Install ${specs.join(", ")} with ${pm}?`,
 			});
-			if (p.isCancel(answer)) {
-				p.cancel("Cancelled.");
-				return 1;
-			}
+			if (p.isCancel(answer)) return cancelled();
 			install = answer;
 		}
 
-		if (install) {
+		if (!install) {
 			const { command, args } = installCommand(pm, specs);
-			const run = spawnSync(command, args, {
-				cwd: root,
-				stdio: "inherit",
-				shell: process.platform === "win32",
-			});
-			if (run.status !== 0) {
-				p.log.error(`${command} exited with ${run.status ?? "an error"}.`);
-				return 1;
-			}
-		} else {
 			p.log.info(
-				`Install manually:\n  ${detectPackageManager(root)} add ${specs.join(" ")}`,
+				`Install them yourself:\n${c.cyan([command, ...args].join(" "))}`,
 			);
+		} else if (!(await installPackages(root, pm, specs))) {
+			return fail(`${pm} could not install them.`);
 		}
 	}
 
 	warnStyling(root);
 
-	p.outro("Done.");
+	p.outro(`Import from ${c.cyan(config.alias ?? config.componentsDir)}`);
 	return 0;
 }
 
-export function editDistance(a: string, b: string): number {
-	let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-	for (let i = 1; i <= a.length; i++) {
-		const row = [i];
-		for (let j = 1; j <= b.length; j++) {
-			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-			row[j] = Math.min(
-				(row[j - 1] as number) + 1,
-				(prev[j] as number) + 1,
-				(prev[j - 1] as number) + cost,
-			);
-		}
-		prev = row;
+// streams the package manager into a log that folds away when it succeeds
+function installPackages(
+	root: string,
+	pm: ReturnType<typeof detectPackageManager>,
+	specs: string[],
+): Promise<boolean> {
+	const { command, args } = installCommand(pm, specs);
+	const log = p.taskLog({ title: `Installing with ${pm}`, limit: 8 });
+	const child = spawn(command, args, {
+		cwd: root,
+		shell: process.platform === "win32",
+	});
+
+	for (const stream of [child.stdout, child.stderr]) {
+		stream.on("data", (chunk: Buffer) => {
+			for (const line of chunk.toString().split(/\r?\n/)) {
+				if (line.trim()) log.message(line);
+			}
+		});
 	}
-	return prev[b.length] as number;
-}
 
-function suggest(index: RegistryIndex, name: string): void {
-	const near = [
-		...index.components.map((x) => x.component),
-		...index.blocks.map((x) => x.id),
-	]
-		.map((x) => ({
-			name: x,
-			score: x.includes(name) || name.includes(x) ? 0 : editDistance(x, name),
-		}))
-		.filter((x) => x.score <= 2)
-		.sort((a, b) => a.score - b.score)
-		.slice(0, 5)
-		.map((x) => x.name);
-
-	if (near.length) p.log.info(`Did you mean: ${near.join(", ")}`);
-	else p.log.info(`Run ${runner()} list to see everything.`);
+	return new Promise((resolve) => {
+		child.on("error", () => {
+			log.error(`Could not start ${command}.`);
+			resolve(false);
+		});
+		child.on("close", (code) => {
+			if (code === 0)
+				log.success(`Installed ${plural(specs.length, "package")}`);
+			else log.error(`${command} exited with ${code}`, { showLog: true });
+			resolve(code === 0);
+		});
+	});
 }
