@@ -5,7 +5,18 @@ import type { Flags } from "../cli";
 import { runner } from "../project";
 import { findUnused, installableFileNames } from "../prune";
 import type { RegistryIndex } from "../registry";
-import { c, cancelled, fail, intro, loadIndex, plural, project } from "../ui";
+import {
+	c,
+	cancelled,
+	fail,
+	intro,
+	loadIndex,
+	outro,
+	plural,
+	project,
+	say,
+	tag,
+} from "../ui";
 
 export async function prune(flags: Flags): Promise<number> {
 	intro();
@@ -28,7 +39,8 @@ export async function prune(flags: Flags): Promise<number> {
 	const show = (path: string) => relative(root, path).replace(/\\/g, "/");
 
 	if (result.computed.length > 0) {
-		p.log.warn(
+		say.warn(
+			"hidden",
 			`${plural(result.computed.length, "file")} build an import at runtime, so what they load cannot be seen\n${result.computed
 				.slice(0, 5)
 				.map((f) => c.dim(show(f)))
@@ -37,36 +49,33 @@ export async function prune(flags: Flags): Promise<number> {
 	}
 
 	if (result.unused.length === 0) {
-		p.outro(
-			`All ${result.kept} in use, across ${plural(result.scanned, "file")}.`,
+		outro(
+			"next",
+			`Nothing to prune. All ${result.kept} in use, across ${plural(result.scanned, "file")}.`,
 		);
 		return 0;
 	}
 
-	p.log.warn(
-		`${plural(result.unused.length, "component")} nothing outside ${config.componentsDir} reaches\n${result.unused
-			.map((f) => c.dim(show(f)))
-			.join("\n")}`,
-	);
+	say.warn("unused", result.unused.map(show).join("\n"));
 
 	if (!flags.write) {
-		p.outro(`Delete them: ${c.cyan(`${runner(root)} prune --write`)}`);
+		outro("next", `Delete them: ${c.accent(`${runner(root)} prune --write`)}`);
 		return 0;
 	}
 
 	if (!flags.yes) {
 		const answer = await p.confirm({
-			message: `Delete ${plural(result.unused.length, "file")}?`,
+			message: tag("delete", `${plural(result.unused.length, "file")}?`),
 			initialValue: false,
 		});
 		if (p.isCancel(answer)) return cancelled();
 		if (!answer) {
-			p.outro("Nothing deleted.");
+			outro("next", "Nothing deleted.");
 			return 0;
 		}
 	}
 
 	for (const file of result.unused) rmSync(file, { force: true });
-	p.outro(`Deleted ${plural(result.unused.length, "file")}.`);
+	outro("delete", `${plural(result.unused.length, "file")} deleted.`);
 	return 0;
 }

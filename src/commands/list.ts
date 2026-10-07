@@ -1,7 +1,6 @@
-import * as p from "@clack/prompts";
 import { findProjectRoot, readConfig, runner } from "../project";
 import { DEFAULT_REGISTRY, type RegistryIndex } from "../registry";
-import { c, fail, intro, loadIndex } from "../ui";
+import { c, fail, intro, loadIndex, outro, say } from "../ui";
 
 export async function list(): Promise<number> {
 	intro();
@@ -28,10 +27,11 @@ export async function list(): Promise<number> {
 				.trimEnd(),
 		);
 	}
-	p.log.message(rows.join("\n"));
+	say.info("available", rows.join("\n"));
 
-	p.outro(
-		`${c.cyan(`${runner(root)} add <component>`)}  ${c.dim("https://yummacss.com/ui")}`,
+	outro(
+		"next",
+		`${c.accent(`${runner(root)} add <component>`)}  ${c.dim("yummacss.com/ui")}`,
 	);
 	return 0;
 }

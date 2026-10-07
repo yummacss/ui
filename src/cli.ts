@@ -27,7 +27,7 @@ const parse = (args: string[]) =>
 const help = () => {
 	const run = runner();
 	const row = (name: string, text: string) =>
-		`  ${c.cyan(name.padEnd(24))}${text}`;
+		`  ${c.accent(name.padEnd(24))}${text}`;
 
 	return `
 ${c.bold("yummaui")} ${c.dim(`v${version}`)}  Copies Yumma UI components into your project.

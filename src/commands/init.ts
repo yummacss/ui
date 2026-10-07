@@ -13,7 +13,7 @@ import {
 } from "../project";
 import { DEFAULT_REGISTRY } from "../registry";
 import { warnStyling } from "../styling";
-import { c, cancelled, fail, intro } from "../ui";
+import { c, cancelled, fail, intro, outro, say } from "../ui";
 
 export async function init(flags: Flags): Promise<number> {
 	intro();
@@ -22,13 +22,14 @@ export async function init(flags: Flags): Promise<number> {
 	if (!root) return fail("No package.json found. Run this inside a project.");
 
 	if (readConfig(root) && !flags.force) {
-		p.outro(`${CONFIG_FILE} exists. ${c.cyan("--force")} replaces it.`);
+		outro("next", `${CONFIG_FILE} exists. ${c.accent("--force")} replaces it.`);
 		return 0;
 	}
 
 	const framework = detectFramework(root);
 	const alias = detectAlias(root);
-	p.log.info(
+	say.info(
+		"project",
 		`${framework ?? "No framework"} with ${detectPackageManager(root)}${
 			alias ? `, imports through ${alias}/` : ""
 		}`,
@@ -58,10 +59,10 @@ export async function init(flags: Flags): Promise<number> {
 		registry: DEFAULT_REGISTRY,
 	};
 	writeConfig(root, config);
-	p.log.success(`Wrote ${CONFIG_FILE}`);
+	say.done("write", CONFIG_FILE);
 
 	warnStyling(root);
 
-	p.outro(`Next: ${c.cyan(`${runner(root)} add`)}`);
+	outro("next", c.accent(`${runner(root)} add`));
 	return 0;
 }

@@ -1,8 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import * as p from "@clack/prompts";
 import { detectFramework, readPackageJson } from "./project";
-import { c } from "./ui";
+import { c, say } from "./ui";
 
 export const CSS_CONFIG_FILE = "yumma.config.mjs";
 
@@ -48,9 +47,8 @@ export function warnStyling(root: string): void {
 	const missing = missingStyling(detectStyling(root));
 	if (missing.length === 0) return;
 
-	p.log.warn(
-		`Yumma CSS is not set up here, so these render unstyled. Missing:\n${missing
-			.map((name) => c.dim(name))
-			.join("\n")}\n${c.cyan(DOCS)}`,
+	say.warn(
+		"check",
+		`${missing.join(", ")} missing, so components render unstyled\n${c.accent(DOCS)}`,
 	);
 }

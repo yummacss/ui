@@ -30,9 +30,12 @@ of the rules: a refusal it prints is the reason `styles.json` gives.
 
 ## Output
 
-Every command opens with `intro()` and ends in `p.outro` or `fail()` from
-`src/ui.ts`, so errors print inside the same frame as everything else. Colour
-is `styleText` from `node:util`; `@clack/prompts` 1.x needs nothing more.
+Every command opens with `intro()` and ends in `outro()` or `fail()` from
+`src/ui.ts`, so errors print inside the same frame as everything else. Each
+line names its stage (`registry`, `write`, `install`, `check`, `next`) in one
+column, with no blank line between steps. Colour is `styleText` from
+`node:util`, except the badge and links, which use the docs site's accent as
+24-bit colour where the terminal supports it and fall back to blue.
 Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
 error rather than a silent default. `add` installs through `p.taskLog`, which
 folds the package manager's output away on success and keeps it on failure.

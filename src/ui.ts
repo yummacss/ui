@@ -13,30 +13,67 @@ import { fetchIndex, type RegistryIndex } from "./registry";
 type Format = Parameters<typeof styleText>[0];
 const style = (format: Format) => (text: string) => styleText(format, text);
 
+// the docs site's accent; styleText has no hex, so 24-bit terminals get it raw
+const depth = process.stdout.hasColors?.(2 ** 24)
+	? 24
+	: process.stdout.hasColors?.()
+		? 4
+		: 0;
+const rgb = (code: string, fallback: Format) => (text: string) =>
+	depth === 24 ? `\x1b[${code}m${text}\x1b[0m` : styleText(fallback, text);
+
 export const c = {
 	bold: style("bold"),
 	dim: style("dim"),
-	cyan: style("cyan"),
 	green: style("green"),
 	yellow: style("yellow"),
 	red: style("red"),
+	accent: rgb("38;2;124;141;232", "blue"),
+	badge: rgb("1;97;48;2;76;95;199", ["bold", "whiteBright", "bgBlue"]),
 };
 
 export const plural = (n: number, word: string) =>
 	`${n} ${word}${n === 1 ? "" : "s"}`;
 
+// a stage name in a fixed column, so every line's text starts in one place
+const WIDTH = 11;
+function tagged(stage: string, text: string): string {
+	const [first, ...rest] = text.split("\n");
+	return [
+		`${c.dim(stage.padEnd(WIDTH))}${first}`,
+		...rest.map((line) => `${" ".repeat(WIDTH)}${line}`),
+	].join("\n");
+}
+
+const line = (symbol: string) => (stage: string, text: string) =>
+	p.log.message(tagged(stage, text), { symbol, spacing: 0 });
+
+export const say = {
+	done: line(c.green(p.S_STEP_SUBMIT)),
+	info: line(c.accent(p.S_INFO)),
+	warn: line(c.yellow(p.S_WARN)),
+};
+
+export const tag = tagged;
+
 export function intro(): void {
-	p.intro(`${c.bold("yummaui")} ${c.dim(`v${version}`)}`);
+	p.intro(`${depth ? c.badge(" yummaui ") : "yummaui"} ${c.dim(version)}`);
+}
+
+export function outro(stage: string, text: string): void {
+	p.outro(tagged(stage, text));
 }
 
 // ends the run on an error; every command returns its exit code
 export function fail(error: unknown): number {
-	p.cancel(error instanceof Error ? error.message : String(error));
+	p.cancel(
+		tagged("error", error instanceof Error ? error.message : String(error)),
+	);
 	return 1;
 }
 
 export function cancelled(): number {
-	p.cancel("Cancelled.");
+	p.cancel(tagged("cancelled", ""));
 	return 1;
 }
 
@@ -46,20 +83,20 @@ export function project(): { root: string; config: Config } | string {
 
 	const config = readConfig(root);
 	if (!config) {
-		return `No ${CONFIG_FILE} found. Run ${c.cyan(`${runner(root)} init`)} first.`;
+		return `No ${CONFIG_FILE} found. Run ${c.accent(`${runner(root)} init`)} first.`;
 	}
 	return { root, config };
 }
 
 export async function loadIndex(registry: string): Promise<RegistryIndex> {
 	const s = p.spinner();
-	s.start("Reading the registry");
+	s.start(tagged("registry", "Reading"));
 	try {
 		const index = await fetchIndex(registry);
-		s.stop(`${plural(index.components.length, "component")} in the registry`);
+		s.stop(tagged("registry", plural(index.components.length, "component")));
 		return index;
 	} catch (error) {
-		s.error("Registry unavailable");
+		s.error(tagged("registry", "Unavailable"));
 		throw error;
 	}
 }

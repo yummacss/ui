@@ -18,7 +18,17 @@ import {
 	resolveStyle,
 } from "../registry";
 import { warnStyling } from "../styling";
-import { c, cancelled, fail, intro, loadIndex, plural, project } from "../ui";
+import {
+	c,
+	cancelled,
+	fail,
+	intro,
+	loadIndex,
+	outro,
+	project,
+	say,
+	tag,
+} from "../ui";
 
 export function targetFileName(id: string, component: string, variant: string) {
 	return variant === "base" ? `${component}.tsx` : `${id}.tsx`;
@@ -113,7 +123,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 			);
 			if ("error" in styled) return fail(styled.error);
 			registry = `${config.registry}/${styled.folder}`;
-			p.log.info(`Style ${c.bold(styled.folder)}`);
+			say.info("style", styled.folder);
 		} catch (error) {
 			return fail(error);
 		}
@@ -158,7 +168,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 				continue;
 			}
 			const answer = await p.confirm({
-				message: `${shown} exists. Replace it?`,
+				message: tag("write", `${shown} exists. Replace it?`),
 				initialValue: false,
 			});
 			if (p.isCancel(answer)) return cancelled();
@@ -175,17 +185,16 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 	}
 
 	if (written.length > 0) {
-		p.log.success(
-			`Added ${plural(written.length, "file")}\n${written.map((f) => c.dim(f)).join("\n")}`,
-		);
+		say.done("write", written.join("\n"));
 	}
 	if (skipped.length > 0) {
-		p.log.warn(
-			`Kept ${plural(skipped.length, "file")} already there\n${skipped.map((f) => c.dim(f)).join("\n")}`,
+		say.warn(
+			"kept",
+			skipped.map((f) => `${f} ${c.dim("already there")}`).join("\n"),
 		);
 	}
 	if (written.length === 0) {
-		p.outro("Nothing written.");
+		outro("next", "Nothing written. --overwrite replaces them.");
 		return 0;
 	}
 
@@ -197,11 +206,12 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 	if (missing.length > 0) {
 		const pm = detectPackageManager(root);
 		const specs = missing.map((d) => `${d.name}@${d.version}`);
+		const packages = missing.map((d) => d.name);
 
 		let install = flags.yes === true;
 		if (!install) {
 			const answer = await p.confirm({
-				message: `Install ${specs.join(", ")} with ${pm}?`,
+				message: tag("install", `${packages.join(", ")} with ${pm}?`),
 			});
 			if (p.isCancel(answer)) return cancelled();
 			install = answer;
@@ -209,9 +219,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 
 		if (!install) {
 			const { command, args } = installCommand(pm, specs);
-			p.log.info(
-				`Install them yourself:\n${c.cyan([command, ...args].join(" "))}`,
-			);
+			say.info("install", c.accent([command, ...args].join(" ")));
 		} else if (!(await installPackages(root, pm, specs))) {
 			return fail(`${pm} could not install them.`);
 		}
@@ -219,7 +227,10 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 
 	warnStyling(root);
 
-	p.outro(`Import from ${c.cyan(config.alias ?? config.componentsDir)}`);
+	outro(
+		"next",
+		`Import from ${c.accent(config.alias ?? config.componentsDir)}`,
+	);
 	return 0;
 }
 
@@ -229,8 +240,9 @@ function installPackages(
 	pm: ReturnType<typeof detectPackageManager>,
 	specs: string[],
 ): Promise<boolean> {
+	const packages = specs.map((spec) => spec.slice(0, spec.lastIndexOf("@")));
 	const { command, args } = installCommand(pm, specs);
-	const log = p.taskLog({ title: `Installing with ${pm}`, limit: 8 });
+	const log = p.taskLog({ title: tag("install", `Running ${pm}`), limit: 8 });
 	const child = spawn(command, args, {
 		cwd: root,
 		shell: process.platform === "win32",
@@ -246,13 +258,15 @@ function installPackages(
 
 	return new Promise((resolve) => {
 		child.on("error", () => {
-			log.error(`Could not start ${command}.`);
+			log.error(tag("install", `Could not start ${command}.`));
 			resolve(false);
 		});
 		child.on("close", (code) => {
-			if (code === 0)
-				log.success(`Installed ${plural(specs.length, "package")}`);
-			else log.error(`${command} exited with ${code}`, { showLog: true });
+			if (code === 0) log.success(tag("install", packages.join(", ")));
+			else
+				log.error(tag("install", `${command} exited with ${code}`), {
+					showLog: true,
+				});
 			resolve(code === 0);
 		});
 	});
