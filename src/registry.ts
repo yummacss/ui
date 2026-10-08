@@ -11,7 +11,7 @@ export interface RegistryFile {
 	content: string;
 }
 
-export type RegistryKind = "component" | "block" | "example";
+export type RegistryKind = "component" | "example";
 
 export interface RegistryItem {
 	id: string;
@@ -30,14 +30,8 @@ export interface RegistryComponent {
 	base: string;
 }
 
-export interface RegistryBlock {
-	id: string;
-	component: string;
-}
-
 export interface RegistryIndex {
 	components: RegistryComponent[];
-	blocks: RegistryBlock[];
 	generated: number;
 }
 

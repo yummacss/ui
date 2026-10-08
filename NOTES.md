@@ -27,3 +27,21 @@ root. Nothing else in `add` knows about styles. The docs site builds those
 folders with the same `applyStyle` its tests cover, so the CLI holds no copy
 of the rules: a refusal it prints is the reason `styles.json` gives.
 
+
+## Output
+
+Every command opens with `intro()` and ends in `outro()` or `fail()` from
+`src/ui.ts`, so errors print inside the same frame as everything else. Each
+line names its stage (`registry`, `write`, `install`, `check`, `next`) in one
+column, with no blank line between steps. Colour is `styleText` from
+`node:util`. On a 24-bit terminal the CLI uses the docs theme's dark values:
+diff-add for done, diff-remove for errors, the accent (the navbar's link
+colour) for links and prompts, a yellow at the diff colours' lightness for
+warnings, and the terminal's own text colour for information. `@clack/prompts` has no theme setting and names its colours,
+so `repaint()` rewrites those codes on stdout. Elsewhere the terminal's own blue and red stand in.
+Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
+error rather than a silent default. `add` installs through `p.taskLog`, which
+folds the package manager's output away on success and keeps it on failure.
+
+The registry's `index.json` still carries an empty `blocks` array, which the
+CLI ignores: blocks never shipped.

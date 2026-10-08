@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `add` with no names opens a list to search and pick from.
+- `init -y` takes the defaults without asking.
+
+### Changed
+
+- Every command prints in the same frame, `list` and errors included. Each
+  line names its stage, and the colours are the docs site's palette.
+- Package manager output folds into one line once the install succeeds, and
+  shows in full when it fails.
+- An unknown option is an error rather than being ignored.
+
+### Removed
+
+- `list <component>`. The docs page has what it showed.
+- Blocks. The registry has none.
+
 ## [0.4.0] - 2026-09-27
 
 ### Added
