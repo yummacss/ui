@@ -36,8 +36,8 @@ line names its stage (`registry`, `write`, `install`, `check`, `next`) in one
 column, with no blank line between steps. Colour is `styleText` from
 `node:util`. On a 24-bit terminal the CLI uses the docs theme's dark values:
 diff-add for done, diff-remove for errors, the accent (the navbar's link
-colour) for links, prompts and warnings, and the terminal's own text colour
-for information. `@clack/prompts` has no theme setting and names its colours,
+colour) for links and prompts, a yellow at the diff colours' lightness for
+warnings, and the terminal's own text colour for information. `@clack/prompts` has no theme setting and names its colours,
 so `repaint()` rewrites those codes on stdout. Elsewhere the terminal's own blue and red stand in.
 Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
 error rather than a silent default. `add` installs through `p.taskLog`, which

@@ -22,8 +22,10 @@ const depth = process.stdout.hasColors?.(2 ** 24)
 const rgb = (code: string, fallback: Format) => (text: string) =>
 	depth === 24 ? `\x1b[${code}m${text}\x1b[39m` : styleText(fallback, text);
 
-// the docs theme's dark values: accent, diff-add and diff-remove
+// the docs theme's dark values: accent, diff-add and diff-remove, plus a
+// yellow at the same lightness for warnings
 const ACCENT = "38;2;190;198;242";
+const WARNING = "38;2;225;212;168";
 const SUCCESS = "38;2;168;225;173";
 const DANGER = "38;2;225;168;168";
 
@@ -32,6 +34,7 @@ export const c = {
 	dim: style("dim"),
 	accent: rgb(ACCENT, "blue"),
 	success: rgb(SUCCESS, "green"),
+	warning: rgb(WARNING, "yellow"),
 	danger: rgb(DANGER, "red"),
 	badge: (text: string) =>
 		depth === 24
@@ -43,7 +46,7 @@ export const c = {
 const REPAINT: Record<string, string> = {
 	"31": DANGER,
 	"32": SUCCESS,
-	"33": ACCENT,
+	"33": WARNING,
 	"35": ACCENT,
 	"36": ACCENT,
 };
@@ -83,7 +86,7 @@ const line = (symbol: string) => (stage: string, text: string) =>
 export const say = {
 	done: line(c.success(p.S_STEP_SUBMIT)),
 	info: line(p.S_INFO),
-	warn: line(c.accent(p.S_WARN)),
+	warn: line(c.warning(p.S_WARN)),
 };
 
 export const tag = tagged;
