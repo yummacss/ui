@@ -20,17 +20,49 @@ const depth = process.stdout.hasColors?.(2 ** 24)
 		? 4
 		: 0;
 const rgb = (code: string, fallback: Format) => (text: string) =>
-	depth === 24 ? `\x1b[${code}m${text}\x1b[0m` : styleText(fallback, text);
+	depth === 24 ? `\x1b[${code}m${text}\x1b[39m` : styleText(fallback, text);
+
+// accent, accent-dim and diff-remove from the docs theme
+const ACCENT = "38;2;124;141;232";
+const ACCENT_DIM = "38;2;154;165;239";
+const DANGER = "38;2;196;112;106";
 
 export const c = {
 	bold: style("bold"),
 	dim: style("dim"),
-	green: style("green"),
-	yellow: style("yellow"),
-	red: style("red"),
-	accent: rgb("38;2;124;141;232", "blue"),
-	badge: rgb("1;97;48;2;76;95;199", ["bold", "whiteBright", "bgBlue"]),
+	accent: rgb(ACCENT, "blue"),
+	muted: rgb(ACCENT_DIM, "blue"),
+	danger: rgb(DANGER, "red"),
+	badge: (text: string) =>
+		depth === 24
+			? `\x1b[1;97;48;2;76;95;199m${text}\x1b[0m`
+			: styleText(["bold", "whiteBright", "bgBlue"], text),
 };
+
+// the prompt library names its colours (green, cyan, yellow); repaint them in the docs palette
+const REPAINT: Record<string, string> = {
+	"31": DANGER,
+	"32": ACCENT,
+	"33": ACCENT_DIM,
+	"35": ACCENT,
+	"36": ACCENT,
+};
+
+const ANSI_COLOR = new RegExp(`${String.fromCharCode(27)}\\[(3[1-6])m`, "g");
+
+export function repaint(): void {
+	if (depth !== 24) return;
+	const write = process.stdout.write.bind(process.stdout);
+	process.stdout.write = ((chunk: unknown, ...rest: never[]) =>
+		write(
+			typeof chunk === "string"
+				? chunk.replace(ANSI_COLOR, (code, n: string) =>
+						REPAINT[n] ? `\x1b[${REPAINT[n]}m` : code,
+					)
+				: (chunk as Uint8Array),
+			...rest,
+		)) as typeof process.stdout.write;
+}
 
 export const plural = (n: number, word: string) =>
 	`${n} ${word}${n === 1 ? "" : "s"}`;
@@ -49,9 +81,9 @@ const line = (symbol: string) => (stage: string, text: string) =>
 	p.log.message(tagged(stage, text), { symbol, spacing: 0 });
 
 export const say = {
-	done: line(c.green(p.S_STEP_SUBMIT)),
+	done: line(c.accent(p.S_STEP_SUBMIT)),
 	info: line(c.accent(p.S_INFO)),
-	warn: line(c.yellow(p.S_WARN)),
+	warn: line(c.muted(p.S_WARN)),
 };
 
 export const tag = tagged;

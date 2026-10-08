@@ -5,7 +5,7 @@ import { init } from "./commands/init";
 import { list } from "./commands/list";
 import { prune } from "./commands/prune";
 import { runner } from "./project";
-import { c } from "./ui";
+import { c, repaint } from "./ui";
 
 const options = {
 	all: { type: "boolean", short: "a" },
@@ -57,6 +57,7 @@ ${c.bold("Examples")}
 };
 
 async function main(): Promise<number> {
+	repaint();
 	let parsed: ReturnType<typeof parse>;
 	try {
 		parsed = parse(process.argv.slice(2));
@@ -65,7 +66,7 @@ async function main(): Promise<number> {
 			(error as { code?: string }).code === "ERR_PARSE_ARGS_UNKNOWN_OPTION";
 		const option = String(error).match(/'(-[^']+)'/)?.[1];
 		console.error(
-			c.red(
+			c.danger(
 				unknown
 					? `Unknown option ${option}.`
 					: String((error as Error).message),
@@ -96,7 +97,7 @@ async function main(): Promise<number> {
 			console.log(help());
 			return 0;
 		default:
-			console.error(c.red(`Unknown command "${command}".`));
+			console.error(c.danger(`Unknown command "${command}".`));
 			console.log(help());
 			return 1;
 	}
@@ -108,7 +109,7 @@ main()
 	})
 	.catch((error: unknown) => {
 		console.error(
-			c.red(error instanceof Error ? error.message : String(error)),
+			c.danger(error instanceof Error ? error.message : String(error)),
 		);
 		process.exitCode = 1;
 	});

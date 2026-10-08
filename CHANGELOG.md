@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Every command prints in the same frame, `list` and errors included. Each
-  line names its stage, and the name badge uses the docs site's accent.
+  line names its stage, and the colours are the docs site's palette.
 - Package manager output folds into one line once the install succeeds, and
   shows in full when it fails.
 - An unknown option is an error rather than being ignored.

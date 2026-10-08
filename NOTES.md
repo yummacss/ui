@@ -34,8 +34,10 @@ Every command opens with `intro()` and ends in `outro()` or `fail()` from
 `src/ui.ts`, so errors print inside the same frame as everything else. Each
 line names its stage (`registry`, `write`, `install`, `check`, `next`) in one
 column, with no blank line between steps. Colour is `styleText` from
-`node:util`, except the badge and links, which use the docs site's accent as
-24-bit colour where the terminal supports it and fall back to blue.
+`node:util`. On a 24-bit terminal the CLI uses only the docs palette: accent,
+accent-dim and the diff red. `@clack/prompts` has no theme setting and names
+its colours (green, cyan, yellow), so `repaint()` rewrites those codes on
+stdout. Elsewhere the terminal's own blue and red stand in.
 Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
 error rather than a silent default. `add` installs through `p.taskLog`, which
 folds the package manager's output away on success and keeps it on failure.
