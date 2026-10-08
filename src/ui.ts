@@ -13,7 +13,7 @@ import { fetchIndex, type RegistryIndex } from "./registry";
 type Format = Parameters<typeof styleText>[0];
 const style = (format: Format) => (text: string) => styleText(format, text);
 
-// the docs site's accent; styleText has no hex, so 24-bit terminals get it raw
+// styleText has no hex, so 24-bit terminals get the docs colours raw
 const depth = process.stdout.hasColors?.(2 ** 24)
 	? 24
 	: process.stdout.hasColors?.()
@@ -22,16 +22,16 @@ const depth = process.stdout.hasColors?.(2 ** 24)
 const rgb = (code: string, fallback: Format) => (text: string) =>
 	depth === 24 ? `\x1b[${code}m${text}\x1b[39m` : styleText(fallback, text);
 
-// accent, accent-dim and diff-remove from the docs theme
-const ACCENT = "38;2;124;141;232";
-const ACCENT_DIM = "38;2;154;165;239";
-const DANGER = "38;2;196;112;106";
+// the docs theme's dark values: accent, diff-add and diff-remove
+const ACCENT = "38;2;190;198;242";
+const SUCCESS = "38;2;168;225;173";
+const DANGER = "38;2;225;168;168";
 
 export const c = {
 	bold: style("bold"),
 	dim: style("dim"),
 	accent: rgb(ACCENT, "blue"),
-	muted: rgb(ACCENT_DIM, "blue"),
+	success: rgb(SUCCESS, "green"),
 	danger: rgb(DANGER, "red"),
 	badge: (text: string) =>
 		depth === 24
@@ -39,11 +39,11 @@ export const c = {
 			: styleText(["bold", "whiteBright", "bgBlue"], text),
 };
 
-// the prompt library names its colours (green, cyan, yellow); repaint them in the docs palette
+// the prompt library names its colours; repaint them in the docs palette
 const REPAINT: Record<string, string> = {
 	"31": DANGER,
-	"32": ACCENT,
-	"33": ACCENT_DIM,
+	"32": SUCCESS,
+	"33": ACCENT,
 	"35": ACCENT,
 	"36": ACCENT,
 };
@@ -81,9 +81,9 @@ const line = (symbol: string) => (stage: string, text: string) =>
 	p.log.message(tagged(stage, text), { symbol, spacing: 0 });
 
 export const say = {
-	done: line(c.accent(p.S_STEP_SUBMIT)),
-	info: line(c.accent(p.S_INFO)),
-	warn: line(c.muted(p.S_WARN)),
+	done: line(c.success(p.S_STEP_SUBMIT)),
+	info: line(p.S_INFO),
+	warn: line(c.accent(p.S_WARN)),
 };
 
 export const tag = tagged;

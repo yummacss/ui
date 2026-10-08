@@ -27,7 +27,7 @@ export async function list(): Promise<number> {
 				.trimEnd(),
 		);
 	}
-	say.info("available", rows.join("\n"));
+	say.done("available", rows.join("\n"));
 
 	outro(
 		"next",
