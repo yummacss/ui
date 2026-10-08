@@ -3,6 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import { DEFAULT_REGISTRY } from "./registry";
 
 export const CONFIG_FILE = "yummaui.json";
+export const CSS_CONFIG_FILE = "yumma.config.mjs";
+export const DOCS = "https://yummacss.com/docs/installation";
+export const MARKER = "@yummacss;";
 
 export interface Config {
 	componentsDir: string;
@@ -134,8 +137,13 @@ export function missingDependencies(
 export function installCommand(
 	pm: PackageManager,
 	specs: string[],
+	dev = false,
 ): { command: string; args: string[] } {
-	const args = pm === "npm" ? ["install", ...specs] : ["add", ...specs];
+	const args = [
+		pm === "npm" ? "install" : "add",
+		...(dev ? ["-D"] : []),
+		...specs,
+	];
 	return { command: pm, args };
 }
 

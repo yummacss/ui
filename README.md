@@ -32,6 +32,11 @@ Detects your framework, package manager and import alias, then writes a `yummaui
 
 Pass `--force` to replace an existing config, and `-y` to take the defaults.
 
+If Yumma CSS is not set up yet, `init` and `add` offer to do it: install
+`yummacss` and `@yummacss/vite` or `@yummacss/postcss`, register the plugin,
+write `yumma.config.mjs`, and add `@yummacss;` to your stylesheet. Each change
+is printed as it happens.
+
 ### `add [components]`
 
 ```bash

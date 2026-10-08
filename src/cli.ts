@@ -4,6 +4,7 @@ import { add } from "./commands/add";
 import { init } from "./commands/init";
 import { list } from "./commands/list";
 import { prune } from "./commands/prune";
+import { m } from "./messages";
 import { runner } from "./project";
 import { c, repaint } from "./ui";
 
@@ -24,37 +25,7 @@ export type Flags = ReturnType<typeof parse>["values"];
 const parse = (args: string[]) =>
 	parseArgs({ args, options, allowPositionals: true });
 
-const help = () => {
-	const run = runner();
-	const row = (name: string, text: string) =>
-		`  ${c.accent(name.padEnd(24))}${text}`;
-
-	return `
-${c.bold("yummaui")} ${c.dim(`v${version}`)}  Copies Yumma UI components into your project.
-
-${c.bold("Usage")}  ${run} <command> [options]
-
-${c.bold("Commands")}
-${row("init", "Write yummaui.json for this project")}
-${row("add [components]", "Copy components in, or pick from a list")}
-${row("list", "Show every component")}
-${row("prune", "Find components nothing uses")}
-
-${c.bold("Options")}
-${row("-a, --all", "add: every component")}
-${row("--style <name>", "add: soft, compact or squircle")}
-${row("--radius <step>", "add: none, small, medium, large or extra")}
-${row("--overwrite", "add: replace files that exist")}
-${row("--write", "prune: delete what it finds")}
-${row("--force", "init: replace yummaui.json")}
-${row("-y, --yes", "Skip prompts and take the defaults")}
-
-${c.bold("Examples")}
-  ${run} add button tooltip
-  ${run} add button --style compact --radius small
-  ${run} prune --write
-`;
-};
+const help = () => m.help(runner(), version);
 
 async function main(): Promise<number> {
 	repaint();
@@ -68,11 +39,11 @@ async function main(): Promise<number> {
 		console.error(
 			c.danger(
 				unknown
-					? `Unknown option ${option}.`
+					? m.cli.unknownOption(option)
 					: String((error as Error).message),
 			),
 		);
-		console.error(`Run ${runner()} --help.`);
+		console.error(m.cli.seeHelp(runner()));
 		return 1;
 	}
 	const { values, positionals } = parsed;
@@ -97,7 +68,7 @@ async function main(): Promise<number> {
 			console.log(help());
 			return 0;
 		default:
-			console.error(c.danger(`Unknown command "${command}".`));
+			console.error(c.danger(m.cli.unknownCommand(command)));
 			console.log(help());
 			return 1;
 	}

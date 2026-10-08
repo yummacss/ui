@@ -2,6 +2,7 @@ import { rmSync } from "node:fs";
 import { relative } from "node:path";
 import * as p from "@clack/prompts";
 import type { Flags } from "../cli";
+import { m } from "../messages";
 import { runner } from "../project";
 import { findUnused, installableFileNames } from "../prune";
 import type { RegistryIndex } from "../registry";
@@ -12,7 +13,6 @@ import {
 	intro,
 	loadIndex,
 	outro,
-	plural,
 	project,
 	say,
 	tag,
@@ -41,7 +41,7 @@ export async function prune(flags: Flags): Promise<number> {
 	if (result.computed.length > 0) {
 		say.warn(
 			"hidden",
-			`${plural(result.computed.length, "file")} build an import at runtime, so what they load cannot be seen\n${result.computed
+			`${m.prune.hidden(result.computed.length)}\n${result.computed
 				.slice(0, 5)
 				.map((f) => c.dim(show(f)))
 				.join("\n")}`,
@@ -49,33 +49,30 @@ export async function prune(flags: Flags): Promise<number> {
 	}
 
 	if (result.unused.length === 0) {
-		outro(
-			"next",
-			`Nothing to prune. All ${result.kept} in use, across ${plural(result.scanned, "file")}.`,
-		);
+		outro("next", m.prune.clean(result.kept, result.scanned));
 		return 0;
 	}
 
 	say.warn("unused", result.unused.map(show).join("\n"));
 
 	if (!flags.write) {
-		outro("next", `Delete them: ${c.accent(`${runner(root)} prune --write`)}`);
+		outro("next", m.prune.next(runner(root)));
 		return 0;
 	}
 
 	if (!flags.yes) {
 		const answer = await p.confirm({
-			message: tag("delete", `${plural(result.unused.length, "file")}?`),
+			message: tag("delete", m.prune.ask(result.unused.length)),
 			initialValue: false,
 		});
 		if (p.isCancel(answer)) return cancelled();
 		if (!answer) {
-			outro("next", "Nothing deleted.");
+			outro("next", m.prune.kept);
 			return 0;
 		}
 	}
 
 	for (const file of result.unused) rmSync(file, { force: true });
-	outro("delete", `${plural(result.unused.length, "file")} deleted.`);
+	outro("delete", m.prune.deleted(result.unused.length));
 	return 0;
 }
