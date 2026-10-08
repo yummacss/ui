@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `add` with no names opens a list to search and pick from.
 - `init -y` takes the defaults without asking.
+- `init` and `add` offer to set up Yumma CSS when it is missing: they install
+  `yummacss` and the plugin for the framework, register the plugin in
+  `vite.config` or `postcss.config`, write `yumma.config.mjs`, and add
+  `@yummacss;` to the stylesheet the app loads.
 
 ### Changed
 
@@ -19,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package manager output folds into one line once the install succeeds, and
   shows in full when it fails.
 - An unknown option is an error rather than being ignored.
+- `init` puts components in `src/components/ui` when the project has a `src`
+  folder.
 
 ### Removed
 

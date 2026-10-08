@@ -1,9 +1,10 @@
-import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import * as p from "@clack/prompts";
 import { distance } from "fastest-levenshtein";
 import type { Flags } from "../cli";
+import { installPackages } from "../install";
+import { m } from "../messages";
 import {
 	detectPackageManager,
 	installCommand,
@@ -17,9 +18,8 @@ import {
 	type RegistryItem,
 	resolveStyle,
 } from "../registry";
-import { warnStyling } from "../styling";
+import { setUpStyling } from "../setup";
 import {
-	c,
 	cancelled,
 	fail,
 	intro,
@@ -84,11 +84,11 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 
 	if (names.length === 0 && !flags.all) {
 		if (flags.yes || !process.stdout.isTTY) {
-			return fail(`Name a component: ${runner(root)} add button`);
+			return fail(m.add.nameOne(runner(root)));
 		}
 		const picked = await p.autocompleteMultiselect({
-			message: "Which components?",
-			placeholder: "Type to search",
+			message: m.add.pick,
+			placeholder: m.add.search,
 			options: index.components.map((x) => ({
 				value: x.component,
 				label: x.component,
@@ -102,13 +102,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 	const resolution = resolveNames(index, names, { all: flags.all });
 	if ("unknown" in resolution) {
 		const near = nearest(index, resolution.unknown);
-		return fail(
-			`There is no ${c.bold(resolution.unknown)} component. ${
-				near.length
-					? `Did you mean ${near.join(", ")}?`
-					: `${runner(root)} list shows them all.`
-			}`,
-		);
+		return fail(m.add.unknown(resolution.unknown, near, runner(root)));
 	}
 
 	let registry = config.registry;
@@ -151,7 +145,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 
 	for (const item of items) {
 		const source = item.files[0];
-		if (!source) return fail(`${item.id} has no files.`);
+		if (!source) return fail(m.add.empty(item.id));
 
 		const dest = join(
 			root,
@@ -168,7 +162,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 				continue;
 			}
 			const answer = await p.confirm({
-				message: tag("write", `${shown} exists. Replace it?`),
+				message: tag("write", m.add.replace(shown)),
 				initialValue: false,
 			});
 			if (p.isCancel(answer)) return cancelled();
@@ -188,13 +182,10 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 		say.done("write", written.join("\n"));
 	}
 	if (skipped.length > 0) {
-		say.warn(
-			"kept",
-			skipped.map((f) => `${f} ${c.dim("already there")}`).join("\n"),
-		);
+		say.warn("kept", skipped.map(m.add.kept).join("\n"));
 	}
 	if (written.length === 0) {
-		outro("next", "Nothing written. --overwrite replaces them.");
+		outro("next", m.add.nothing);
 		return 0;
 	}
 
@@ -211,7 +202,7 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 		let install = flags.yes === true;
 		if (!install) {
 			const answer = await p.confirm({
-				message: tag("install", `${packages.join(", ")} with ${pm}?`),
+				message: tag("install", m.install.ask(packages, pm)),
 			});
 			if (p.isCancel(answer)) return cancelled();
 			install = answer;
@@ -219,55 +210,15 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 
 		if (!install) {
 			const { command, args } = installCommand(pm, specs);
-			say.info("install", c.accent([command, ...args].join(" ")));
+			say.info("install", m.install.yourself([command, ...args].join(" ")));
 		} else if (!(await installPackages(root, pm, specs))) {
-			return fail(`${pm} could not install them.`);
+			return fail(m.install.failed(pm));
 		}
 	}
 
-	warnStyling(root);
+	if (!(await setUpStyling(root, config.componentsDir, flags.yes === true)))
+		return 1;
 
-	outro(
-		"next",
-		`Import from ${c.accent(config.alias ?? config.componentsDir)}`,
-	);
+	outro("next", m.add.next(config.alias ?? config.componentsDir));
 	return 0;
-}
-
-// streams the package manager into a log that folds away when it succeeds
-function installPackages(
-	root: string,
-	pm: ReturnType<typeof detectPackageManager>,
-	specs: string[],
-): Promise<boolean> {
-	const packages = specs.map((spec) => spec.slice(0, spec.lastIndexOf("@")));
-	const { command, args } = installCommand(pm, specs);
-	const log = p.taskLog({ title: tag("install", `Running ${pm}`), limit: 8 });
-	const child = spawn(command, args, {
-		cwd: root,
-		shell: process.platform === "win32",
-	});
-
-	for (const stream of [child.stdout, child.stderr]) {
-		stream.on("data", (chunk: Buffer) => {
-			for (const line of chunk.toString().split(/\r?\n/)) {
-				if (line.trim()) log.message(line);
-			}
-		});
-	}
-
-	return new Promise((resolve) => {
-		child.on("error", () => {
-			log.error(tag("install", `Could not start ${command}.`));
-			resolve(false);
-		});
-		child.on("close", (code) => {
-			if (code === 0) log.success(tag("install", packages.join(", ")));
-			else
-				log.error(tag("install", `${command} exited with ${code}`), {
-					showLog: true,
-				});
-			resolve(code === 0);
-		});
-	});
 }

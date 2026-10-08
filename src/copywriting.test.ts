@@ -1,50 +1,17 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const srcDir = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(srcDir, "..");
+// every sentence the CLI prints lives in messages.ts
+const source = readFileSync(new URL("./messages.ts", import.meta.url), "utf8");
 
-function sources(dir: string): string[] {
-	const out: string[] = [];
-
-	for (const entry of readdirSync(dir, { withFileTypes: true })) {
-		const full = join(dir, entry.name);
-		if (entry.isDirectory()) out.push(...sources(full));
-		else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts"))
-			out.push(full);
-	}
-
-	return out;
-}
-
-function copy(): { file: string; text: string }[] {
-	const out: { file: string; text: string }[] = [];
-
-	for (const path of sources(srcDir)) {
-		const source = readFileSync(path, "utf8");
-		const file = relative(rootDir, path);
-
-		for (const match of source.matchAll(/"([^"\n]{6,})"|'([^'\n]{6,})'/g)) {
-			const text = (match[1] ?? match[2] ?? "").trim();
-			if (!/[a-z]{3}/.test(text) || !text.includes(" ")) continue;
-			if (/^[\w\-./@:*\s]+$/.test(text) && !/[A-Z]/.test(text)) continue;
-			if (text.includes("${") || text.includes("||") || text.includes("==="))
-				continue;
-			out.push({ file, text });
-		}
-	}
-
-	return out;
-}
-
-const strings = copy();
+const strings = [...source.matchAll(/"([^"\n]*)"|`([^`]*)`/g)]
+	.map((match) => (match[1] ?? match[2] ?? "").replace(/\$\{[^}]*\}/g, " "))
+	.filter((text) => /[a-z]{3}/i.test(text) && text.trim().includes(" "));
 
 function offenders(pattern: RegExp): string[] {
 	return strings
-		.filter(({ text }) => pattern.test(text))
-		.map(({ file, text }) => `${file}: ${text}`);
+		.filter((text) => pattern.test(text))
+		.map((text) => text.trim());
 }
 
 describe("CLI copy", () => {
