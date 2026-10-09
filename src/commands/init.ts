@@ -1,5 +1,8 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import * as p from "@clack/prompts";
 import type { Flags } from "../cli";
+import { m } from "../messages";
 import {
 	CONFIG_FILE,
 	type Config,
@@ -12,17 +15,18 @@ import {
 	writeConfig,
 } from "../project";
 import { DEFAULT_REGISTRY } from "../registry";
-import { warnStyling } from "../styling";
-import { c, cancelled, fail, intro, outro, say } from "../ui";
+import { setUpStyling } from "../setup";
+import { c, cancelled, fail, gap, intro, outro, say } from "../ui";
 
 export async function init(flags: Flags): Promise<number> {
 	intro();
+	gap();
 
 	const root = findProjectRoot();
-	if (!root) return fail("No package.json found. Run this inside a project.");
+	if (!root) return fail(m.project.missing);
 
 	if (readConfig(root) && !flags.force) {
-		outro("next", `${CONFIG_FILE} exists. ${c.accent("--force")} replaces it.`);
+		outro("next", m.init.exists());
 		return 0;
 	}
 
@@ -30,24 +34,25 @@ export async function init(flags: Flags): Promise<number> {
 	const alias = detectAlias(root);
 	say.info(
 		"project",
-		`${framework ?? "No framework"} with ${detectPackageManager(root)}${
-			alias ? `, imports through ${alias}/` : ""
-		}`,
+		m.init.detected(framework, detectPackageManager(root), alias),
 	);
 
+	const fallback = existsSync(join(root, "src"))
+		? "src/components/ui"
+		: "components/ui";
 	const componentsDir = flags.yes
-		? "components/ui"
+		? fallback
 		: await p.text({
-				message: "Where do components go?",
-				placeholder: "components/ui",
-				defaultValue: "components/ui",
+				message: m.init.where,
+				placeholder: fallback,
+				defaultValue: fallback,
 			});
 	if (p.isCancel(componentsDir)) return cancelled();
 
 	let useAlias = Boolean(alias);
 	if (alias && !flags.yes) {
 		const answer = await p.confirm({
-			message: `Import them through ${c.bold(`${alias}/`)}?`,
+			message: m.init.useAlias(alias),
 		});
 		if (p.isCancel(answer)) return cancelled();
 		useAlias = answer;
@@ -61,7 +66,7 @@ export async function init(flags: Flags): Promise<number> {
 	writeConfig(root, config);
 	say.done("write", CONFIG_FILE);
 
-	warnStyling(root);
+	if (!(await setUpStyling(root, componentsDir, flags.yes === true))) return 1;
 
 	outro("next", c.accent(`${runner(root)} add`));
 	return 0;

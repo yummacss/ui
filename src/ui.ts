@@ -1,13 +1,8 @@
 import { styleText } from "node:util";
 import * as p from "@clack/prompts";
 import { version } from "../package.json";
-import {
-	CONFIG_FILE,
-	type Config,
-	findProjectRoot,
-	readConfig,
-	runner,
-} from "./project";
+import { m } from "./messages";
+import { type Config, findProjectRoot, readConfig, runner } from "./project";
 import { fetchIndex, type RegistryIndex } from "./registry";
 
 type Format = Parameters<typeof styleText>[0];
@@ -42,7 +37,8 @@ export const c = {
 			: styleText(["bold", "whiteBright", "bgBlue"], text),
 };
 
-// the prompt library names its colours; repaint them in the docs palette
+// the prompt library names its colours; repaint them in the docs palette.
+// The same file lives in yummacss's packages/cli; keep the two alike.
 const REPAINT: Record<string, string> = {
 	"31": DANGER,
 	"32": SUCCESS,
@@ -68,7 +64,7 @@ export function repaint(): void {
 }
 
 export const plural = (n: number, word: string) =>
-	`${n} ${word}${n === 1 ? "" : "s"}`;
+	`${n} ${word}${n === 1 ? "" : word.endsWith("s") ? "es" : "s"}`;
 
 // a stage name in a fixed column, so every line's text starts in one place
 const WIDTH = 11;
@@ -87,12 +83,18 @@ export const say = {
 	done: line(c.success(p.S_STEP_SUBMIT)),
 	info: line(p.S_INFO),
 	warn: line(c.warning(p.S_WARN)),
+	error: line(c.danger(p.S_ERROR)),
 };
 
 export const tag = tagged;
 
+// commands without a spinner call gap() after it, since a spinner draws its own
 export function intro(): void {
 	p.intro(`${depth ? c.badge(" yummaui ") : "yummaui"} ${c.dim(version)}`);
+}
+
+export function gap(): void {
+	p.log.message("", { symbol: c.dim(p.S_BAR), spacing: 0 });
 }
 
 export function outro(stage: string, text: string): void {
@@ -114,24 +116,24 @@ export function cancelled(): number {
 
 export function project(): { root: string; config: Config } | string {
 	const root = findProjectRoot();
-	if (!root) return "No package.json found. Run this inside a project.";
+	if (!root) return m.project.missing;
 
 	const config = readConfig(root);
 	if (!config) {
-		return `No ${CONFIG_FILE} found. Run ${c.accent(`${runner(root)} init`)} first.`;
+		return m.project.noConfig(runner(root));
 	}
 	return { root, config };
 }
 
 export async function loadIndex(registry: string): Promise<RegistryIndex> {
 	const s = p.spinner();
-	s.start(tagged("registry", "Reading"));
+	s.start(tagged("registry", m.registry.reading));
 	try {
 		const index = await fetchIndex(registry);
-		s.stop(tagged("registry", plural(index.components.length, "component")));
+		s.stop(tagged("registry", m.registry.found(index.components.length)));
 		return index;
 	} catch (error) {
-		s.error(tagged("registry", "Unavailable"));
+		s.error(tagged("registry", m.registry.unavailable));
 		throw error;
 	}
 }

@@ -213,3 +213,14 @@ describe("installCommand", () => {
 		});
 	});
 });
+
+describe("installCommand for dev dependencies", () => {
+	it("adds -D after the verb", () => {
+		expect(installCommand("npm", ["a"], true).args).toEqual([
+			"install",
+			"-D",
+			"a",
+		]);
+		expect(installCommand("bun", ["a"], true).args).toEqual(["add", "-D", "a"]);
+	});
+});

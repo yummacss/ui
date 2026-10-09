@@ -1,6 +1,7 @@
+import { m } from "../messages";
 import { findProjectRoot, readConfig, runner } from "../project";
 import { DEFAULT_REGISTRY, type RegistryIndex } from "../registry";
-import { c, fail, intro, loadIndex, outro, say } from "../ui";
+import { fail, intro, loadIndex, outro, say } from "../ui";
 
 export async function list(): Promise<number> {
 	intro();
@@ -29,9 +30,6 @@ export async function list(): Promise<number> {
 	}
 	say.done("available", rows.join("\n"));
 
-	outro(
-		"next",
-		`${c.accent(`${runner(root)} add <component>`)}  ${c.dim("yummacss.com/ui")}`,
-	);
+	outro("next", m.list.next(runner(root)));
 	return 0;
 }
