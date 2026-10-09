@@ -216,7 +216,14 @@ export async function add(names: string[], flags: Flags): Promise<number> {
 		}
 	}
 
-	if (!(await setUpStyling(root, config.componentsDir, flags.yes === true)))
+	if (
+		!(await setUpStyling(
+			root,
+			config.componentsDir,
+			flags.yes === true,
+			index.theme,
+		))
+	)
 		return 1;
 
 	outro("next", m.add.next(config.alias ?? config.componentsDir));

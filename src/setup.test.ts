@@ -8,7 +8,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { planSetup, sources, stylesheet } from "./setup";
+import { missingTheme, planSetup, sources, stylesheet } from "./setup";
 
 const dirs: string[] = [];
 
@@ -137,6 +137,28 @@ describe("sources", () => {
 		expect(sources(dir, "components/ui")).toEqual([
 			"./app/**/*.{js,jsx,ts,tsx,mdx}",
 			"./components/**/*.{js,jsx,ts,tsx,mdx}",
+		]);
+	});
+});
+
+describe("theme", () => {
+	const theme = {
+		states: { opening: "[data-starting-style]" },
+		keyframes: { spin: "to { rotate: 360deg; }" },
+	};
+
+	it("writes the components' states and keyframes into a new config", async () => {
+		const dir = project({ "package.json": {}, "src/main.ts": "" });
+		for (const step of planSetup(dir, "components/ui", theme).steps)
+			await step.apply();
+		const config = read(dir, "yumma.config.mjs");
+		expect(config).toContain(`opening: "[data-starting-style]",`);
+		expect(config).toContain(`spin: "to { rotate: 360deg; }",`);
+	});
+
+	it("names what an existing config lacks", () => {
+		expect(missingTheme(`theme: { states: { opening: "x" } }`, theme)).toEqual([
+			"spin",
 		]);
 	});
 });

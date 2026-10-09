@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-09
+
+### Fixed
+
+- The `yumma.config.mjs` that setup writes includes the states and keyframes
+  the components animate with, read from the registry. When the file exists
+  and lacks some of them, `add` and `init` name the ones to add.
+
 ## [0.5.0] - 2026-10-09
 
 ### Added
@@ -80,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release.
 
-[Unreleased]: https://github.com/yummacss/yummaui/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/yummacss/yummaui/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/yummacss/yummaui/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/yummacss/yummaui/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/yummacss/yummaui/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/yummacss/yummaui/compare/v0.2.1...v0.3.0

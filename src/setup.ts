@@ -16,6 +16,7 @@ import {
 	MARKER,
 	readPackageJson,
 } from "./project";
+import type { RegistryTheme } from "./registry";
 import { cancelled, say, tag } from "./ui";
 
 const EXTENSIONS = "{js,jsx,ts,tsx,mdx}";
@@ -93,13 +94,30 @@ export function stylesheet(root: string, bundler: Bundler): string | null {
 	]);
 }
 
-export function configSource(globs: string[]): string {
+const block = (name: string, table: Record<string, string>) =>
+	Object.keys(table).length
+		? `    ${name}: {\n${Object.entries(table)
+				.map(([key, value]) => `      ${key}: ${JSON.stringify(value)},`)
+				.join("\n")}\n    },\n`
+		: "";
+
+export function configSource(globs: string[], theme?: RegistryTheme): string {
+	const body = theme
+		? block("states", theme.states) + block("keyframes", theme.keyframes)
+		: "";
 	return `import { defineConfig } from "yummacss";
 
 export default defineConfig({
   source: [${globs.map((glob) => `"${glob}"`).join(", ")}],
-});
+${body ? `  theme: {\n${body}  },\n` : ""}});
 `;
+}
+
+// the names a config does not define yet
+export function missingTheme(source: string, theme?: RegistryTheme): string[] {
+	return Object.keys({ ...theme?.states, ...theme?.keyframes }).filter(
+		(name) => !new RegExp(`\\b${name}\\s*:`).test(source),
+	);
 }
 
 // generating from the module, not its AST, keeps the file's own quotes and semicolons
@@ -126,7 +144,11 @@ function addPostcssPlugin(mod: ProxifiedModule): void {
 	}
 }
 
-export function planSetup(root: string, componentsDir: string): Plan {
+export function planSetup(
+	root: string,
+	componentsDir: string,
+	theme?: RegistryTheme,
+): Plan {
 	const pkg = readPackageJson(root);
 	const deps = new Set([
 		...Object.keys((pkg.dependencies as object) ?? {}),
@@ -195,14 +217,20 @@ export function planSetup(root: string, componentsDir: string): Plan {
 		plan.manual.push(m.setup.noBuild);
 	}
 
-	if (!existsSync(join(root, CSS_CONFIG_FILE))) {
+	if (existsSync(join(root, CSS_CONFIG_FILE))) {
+		const missing = missingTheme(
+			readFileSync(join(root, CSS_CONFIG_FILE), "utf8"),
+			theme,
+		);
+		if (missing.length) plan.manual.push(m.setup.missingTheme(missing));
+	} else {
 		plan.steps.push({
 			stage: "write",
 			file: CSS_CONFIG_FILE,
 			apply: async () => {
 				writeFileSync(
 					join(root, CSS_CONFIG_FILE),
-					configSource(sources(root, componentsDir)),
+					configSource(sources(root, componentsDir), theme),
 				);
 				return CSS_CONFIG_FILE;
 			},
@@ -232,9 +260,12 @@ export async function setUpStyling(
 	root: string,
 	componentsDir: string,
 	yes: boolean,
+	theme?: RegistryTheme,
 ): Promise<boolean> {
-	const plan = planSetup(root, componentsDir);
-	if (!plan.packages.length && !plan.steps.length && !plan.manual.length) {
+	const plan = planSetup(root, componentsDir, theme);
+	if (!plan.packages.length && !plan.steps.length) {
+		// set up already; anything left is a line to add, not a question
+		for (const line of plan.manual) say.warn("check", line);
 		return true;
 	}
 

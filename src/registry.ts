@@ -30,8 +30,15 @@ export interface RegistryComponent {
 	base: string;
 }
 
+// the states and keyframes the components animate with
+export interface RegistryTheme {
+	states: Record<string, string>;
+	keyframes: Record<string, string>;
+}
+
 export interface RegistryIndex {
 	components: RegistryComponent[];
+	theme?: RegistryTheme;
 	generated: number;
 }
 

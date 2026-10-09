@@ -1,5 +1,5 @@
 // every sentence yummaui prints, grouped by command; copywriting.test.ts checks them
-import { CONFIG_FILE, DOCS, MARKER } from "./project";
+import { CONFIG_FILE, DOCS, MARKER, UI_DOCS } from "./project";
 import { c, plural } from "./ui";
 
 export const m = {
@@ -101,6 +101,8 @@ ${c.bold("Examples")}
 		noStylesheet: `Add ${MARKER} to the stylesheet your app loads`,
 		failed: (file: string) =>
 			`Could not change ${file}. The docs have the line to add.`,
+		missingTheme: (names: string[]) =>
+			`Add these to the theme in yumma.config.mjs\n${names.join(", ")}\n${c.accent(UI_DOCS)}`,
 	},
 
 	list: {
