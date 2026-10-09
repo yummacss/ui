@@ -37,7 +37,8 @@ export const c = {
 			: styleText(["bold", "whiteBright", "bgBlue"], text),
 };
 
-// the prompt library names its colours; repaint them in the docs palette
+// the prompt library names its colours; repaint them in the docs palette.
+// The same file lives in yummacss's packages/cli; keep the two alike.
 const REPAINT: Record<string, string> = {
 	"31": DANGER,
 	"32": SUCCESS,
@@ -63,7 +64,7 @@ export function repaint(): void {
 }
 
 export const plural = (n: number, word: string) =>
-	`${n} ${word}${n === 1 ? "" : "s"}`;
+	`${n} ${word}${n === 1 ? "" : word.endsWith("s") ? "es" : "s"}`;
 
 // a stage name in a fixed column, so every line's text starts in one place
 const WIDTH = 11;
@@ -82,12 +83,18 @@ export const say = {
 	done: line(c.success(p.S_STEP_SUBMIT)),
 	info: line(p.S_INFO),
 	warn: line(c.warning(p.S_WARN)),
+	error: line(c.danger(p.S_ERROR)),
 };
 
 export const tag = tagged;
 
+// commands without a spinner call gap() after it, since a spinner draws its own
 export function intro(): void {
 	p.intro(`${depth ? c.badge(" yummaui ") : "yummaui"} ${c.dim(version)}`);
+}
+
+export function gap(): void {
+	p.log.message("", { symbol: c.dim(p.S_BAR), spacing: 0 });
 }
 
 export function outro(stage: string, text: string): void {

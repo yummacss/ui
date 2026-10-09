@@ -45,7 +45,8 @@ Flags are `parseArgs` from `node:util` in `cli.ts`, strict, so a typo is an
 error rather than a silent default. `add` installs through `p.taskLog`, which
 folds the package manager's output away on success and keeps it on failure.
 
-Every sentence the CLI prints is in `src/messages.ts`, a string or a function
+`src/ui.ts` matches `packages/cli/src/ui.ts` in the yummacss repo, badge and
+`intro()` aside; keep the two alike. Every sentence the CLI prints is in `src/messages.ts`, a string or a function
 of the values it needs, and `copywriting.test.ts` reads only that file.
 
 ## Setting up Yumma CSS

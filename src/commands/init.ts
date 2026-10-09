@@ -16,10 +16,11 @@ import {
 } from "../project";
 import { DEFAULT_REGISTRY } from "../registry";
 import { setUpStyling } from "../setup";
-import { c, cancelled, fail, intro, outro, say } from "../ui";
+import { c, cancelled, fail, gap, intro, outro, say } from "../ui";
 
 export async function init(flags: Flags): Promise<number> {
 	intro();
+	gap();
 
 	const root = findProjectRoot();
 	if (!root) return fail(m.project.missing);
