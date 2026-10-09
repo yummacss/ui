@@ -14,7 +14,7 @@ import {
 	runner,
 	writeConfig,
 } from "../project";
-import { DEFAULT_REGISTRY } from "../registry";
+import { DEFAULT_REGISTRY, fetchIndex } from "../registry";
 import { setUpStyling } from "../setup";
 import { c, cancelled, fail, gap, intro, outro, say } from "../ui";
 
@@ -66,7 +66,13 @@ export async function init(flags: Flags): Promise<number> {
 	writeConfig(root, config);
 	say.done("write", CONFIG_FILE);
 
-	if (!(await setUpStyling(root, componentsDir, flags.yes === true))) return 1;
+	// the theme the components animate with; without the registry, setup goes on without it
+	const theme = await fetchIndex(config.registry).then(
+		(index) => index.theme,
+		() => undefined,
+	);
+	if (!(await setUpStyling(root, componentsDir, flags.yes === true, theme)))
+		return 1;
 
 	outro("next", c.accent(`${runner(root)} add`));
 	return 0;

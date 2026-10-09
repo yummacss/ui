@@ -58,7 +58,10 @@ did. Config files are edited with `magicast`: `addVitePlugin` for
 `postcss.config`. A config that is not an object literal is left alone and
 the step says so. Writing through `generateCode(mod)` rather than its AST
 keeps the file's own quotes. The stylesheet is `globals.css` on Next.js, or
-the CSS file the Vite entry imports. When there is no Vite config or no
+the CSS file the Vite entry imports. A new `yumma.config.mjs` gets the
+`theme` the registry's `index.json` publishes, the states and keyframes the
+components animate with; an existing one is only checked, and the missing names
+are printed. When there is no Vite config or no
 stylesheet, the CLI names the line to add instead of guessing. Plugins go in
 as dev dependencies, the way the installation page has them.
 

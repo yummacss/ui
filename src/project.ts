@@ -5,6 +5,7 @@ import { DEFAULT_REGISTRY } from "./registry";
 export const CONFIG_FILE = "yummaui.json";
 export const CSS_CONFIG_FILE = "yumma.config.mjs";
 export const DOCS = "https://yummacss.com/docs/installation";
+export const UI_DOCS = "https://yummacss.com/ui/installation";
 export const MARKER = "@yummacss;";
 
 export interface Config {
